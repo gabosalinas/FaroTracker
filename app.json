@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "FaroTracker",
+    "slug": "FaroTracker",
+    "version": "0.0.8",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.gabosalinas.farotracker",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1cee3a58-da2d-47c3-bd45-e1695f9b8bf1"
+      }
+    },
+    "plugins": [
+      "expo-video",
+      "expo-asset"
+    ]
+  }
+}
