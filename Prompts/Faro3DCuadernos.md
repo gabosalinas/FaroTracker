@@ -1,80 +1,83 @@
 # Documento Maestro
 
-## **Proyecto: App Faro 3D (Documento Maestro)**
+## **Proyecto: App FaroTracker (Documento Maestro)**
 
-La App Faro 3D es una plataforma de diseño y compra que traslada la estética técnica, minimalista y táctil de la marca al dispositivo del cliente.
+FaroTracker es una plataforma interactiva de co-diseño y compra que traslada la estética técnica, minimalista y táctil de la marca al diseño de agendas visuales y tableros de seguimiento físicos y magnéticos (ideados para adherirse a superficies metálicas como heladeras).
 
-### **1. El Catálogo (Línea de Autor)**
+### **1. El Catálogo (Líneas de Autor)**
 
-Sección para la compra de cuadernos pre-diseñados por **Faro 3D**.
+Sección orientada a la compra de organizadores y rastreadores temáticos prediseñados por **FaroTracker**.
 
-* **Contenido:** Colecciones icónicas como **Medicina, Ingeniería, Art**, etc.  
-* **UX:** Navegación fluida tipo galería; el cliente elige un modelo y accede directamente al checkout con un diseño ya optimizado por la marca.
+* **Contenido:** Colecciones preconfiguradas con sets cerrados de fichas (e.g., **Organizador Infantil, Hábitos Saludables, Fitness & Nutrición, Trabajo Semanal**).
+* **UX:** Galería interactiva con fotos reales del producto. El cliente elige un modelo pre-establecido y accede directamente al checkout con una configuración estándar recomendada.
 
 ### **2. El Modo Creación (Línea Studio)**
 
-Experiencia interactiva de co-diseño modular para la tapa y la contratapa del cuaderno.
+Experiencia interactiva y modular para personalizar el tablero organizador y configurar el set de fichas magnéticas a medida.
 
-* **Términos y Condiciones:** Al ingresar al taller por primera vez, el usuario debe leer y aceptar los términos y condiciones detallados (blindaje de copyright, garantía obligatoria de 6 meses y exclusión de arrepentimiento según Art. 1116 CCyC de Argentina) haciendo scroll completo hasta el final del documento para habilitar el botón de aceptación.
-* **Persistencia de Estado:** El editor inicia limpio en su primera ejecución. Una vez que el usuario interactúa, los lienzos recuerdan automáticamente cómo fueron dejados (usando persistencia en `AsyncStorage` y un protector de carga para evitar parpadeos visuales al abrir la app).
-* **Configuración Cromática:** Elección rápida y moderna de colores para el marco (**Base**) y el fondo (**Lienzo**) mediante un modal selector de colores.
-* **Composición y Galería:** Un catálogo organizado de 659 recursos agrupados por solapas para una búsqueda cómoda:
-  * **DIBUJOS:** Diseños genéricos (animales, monumentos, paisajes, memes y objetos cotidianos) diseñados bajo estrictas reglas de MakerWorld (2D plano, vista 100% frontal, sin perspectiva ni sombras y 4 colores sólidos para una extrusión limpia).
-  * **LETRAS:** Letras (A-Z), números (0-9) y símbolos en 4 tipografías distintas (Arial, Comic Sans, Georgia, Impact).
-  * **ZODIACO:** Los 12 signos astrológicos tradicionales vectorizados.
-  * **EMOJIS:** Extenso catálogo de más de 380 emojis nativos del sistema ordenados por categorías.
-* **Herramientas de Edición:** Capacidad de tener hasta 5 stickers por cara.
-  * **Interacción Precisa:** Zona de selección compacta de 80x80 píxeles.
-  * **Movimiento:** Arrastrar (Drag & Drop) en el lienzo (al desplazar más del 80% del sticker fuera del área de diseño se ofrece confirmación para eliminarlo).
-  * **Rotación:** Giro de +45° al tocar un sticker ya seleccionado.
-  * **Escala:** Long-press rápido para ciclar el tamaño.
-  * **Alturas:** Selector individual de relieve ("Nivel Lienzo" o "Sobre Relieve") para cada icono.
+* **Términos y Condiciones:** Al ingresar al taller de diseño por primera vez, el usuario debe leer y aceptar los términos y condiciones detallados (exclusión de arrepentimiento según Art. 1116 CCyC de Argentina para productos personalizados, garantía de 6 meses y derechos de propiedad intelectual) haciendo scroll completo para habilitar el botón de aceptación.
+* **Persistencia de Estado:** El editor guarda automáticamente el estado del diseño del tablero (colores y fichas colocadas/seleccionadas) mediante `AsyncStorage`, impidiendo parpadeos visuales al cargar la app.
+* **Configuración Cromática del Tablero:** Elección de tres variables de color:
+  * **Color de Base:** Color de fondo general del tablero.
+  * **Color de Acento:** Color de los bordes y el delineado circular de las ranuras (Slots).
+  * **Color de Texto/Días:** Color para la tipografía de los días de la semana (L, Ma, Mi, J, V, S, D).
+* **Diseño del Tablero (Grid Semanal Dinámico):**
+  * Estructura de 7 columnas fijas para los días de la semana: **L (Lunes), Ma (Martes), Mi (Miércoles), J (Jueves), V (Viernes), S (Sábado), D (Domingo)**.
+  * **Filas dinámicas:** El usuario puede agregar o remover filas al tablero (mínimo 1, máximo 6 filas; por defecto 4) mediante botones de control rápido en el editor (`+ Filas` / `- Filas`).
+  * Cada ranura es un slot circular imantado.
+* **Configurador del Set de Fichas (Token Pack):**
+  * El usuario selecciona qué iconos magnéticos quiere incluir en su pack físico y la cantidad de cada uno.
+  * **Estética de las Fichas (Tokens):**
+    * Cada ficha circular tiene como color de fondo (base de la ficha) el mismo color seleccionado como **Color de Base** del tablero.
+    * El icono gráfico que va sobre la ficha se renderiza con su representación de color original (dibujos, emojis, zodiaco, tipografías).
+  * **Inventario / Galería de Iconos:**
+    * **DIBUJOS:** Diseños genéricos (animales, monumentos, paisajes, memes y objetos cotidianos) diseñados bajo estrictas reglas de MakerWorld (2D plano, vista 100% frontal, sin perspectiva ni sombras y 4 colores sólidos para una extrusión limpia).
+    * **LETRAS:** Letras (A-Z), números (0-9) y símbolos en 4 tipografías distintas (Arial, Comic Sans, Georgia, Impact).
+    * **ZODIACO:** Los 12 signos astrológicos tradicionales vectorizados.
+    * **EMOJIS:** Extenso catálogo de más de 380 emojis nativos del sistema ordenados por categorías.
+  * **Control de Cantidades:** Selector numérico (+ / -) para definir la cantidad de fichas físicas que se ordenarán de cada diseño. Se muestra un indicador del total acumulado de fichas del pedido.
+* **Lienzo Interactivo (El Canvas 2D):**
+  * El usuario puede arrastrar fichas desde su inventario de fichas seleccionadas y posicionarlas en las ranuras circulares disponibles del tablero.
+  * **Imantación (Snap):** Al soltar una ficha cerca de una de las ranuras circulares, esta se acopla ("snappea") automáticamente al centro de la ranura.
+  * **Remoción:** Si se arrastra una ficha fuera del tablero, se quita del canvas (vuelve al inventario de previsualización).
 
 ### **3. Visualización Inmersiva: El Botón "3D"**
 
-Para romper la bidimensionalidad del diseño técnico, se incluye una función de previsualización avanzada:
+Para validar el producto antes de mandarlo a fabricar, se incluye un visor tridimensional interactivo:
 
-* **Función:** Al tocar el botón **"Vista 3D"**, la app genera un render interactivo tridimensional en tiempo real usando ThreeJS en un WebView premium.  
-* **Efecto:** El usuario puede rotar el cuaderno en 360°, apreciar el grosor de la tapa, la textura, los reflejos del metal y el sombreado físico real de los elementos configurados en "Sobre Relieve".  
-* **Propósito:** Validar la profundidad y el juego de sombras físicas antes de confirmar el pedido.
+* **Función:** Al tocar el botón **"Vista 3D"**, se abre un visor en tiempo real usando ThreeJS en un WebView premium.
+* **Efecto:** Muestra el tablero personalizado de FaroTracker adherido magnéticamente sobre la superficie metálica de una puerta de heladera premium. El render refleja los colores seleccionados (Base, Acento y Texto de días), la cantidad exacta de filas del tablero, y las fichas colocadas en sus respectivas ranuras circulares. Las fichas tendrán relieve real y su color de fondo coincidirá con el del tablero.
+* **Propósito:** Validar la composición, contraste y profundidad del conjunto antes de la compra.
 
 ### **4. ADN y Reglas de Producción**
 
-* **Curaduría Cromática:** Colores de iconos fijos para asegurar armonía y factibilidad.  
-* **Colores Sólidos:** Sin gradientes; la riqueza visual reside en el relieve y la combinación de colores planos.  
-* **Fidelidad Técnica:** El diseño se realiza en vista ortogonal para precisión, y el 3D se usa solo como instancia de validación estética.
+* **Curaduría Cromática:** Colores de fondo del tablero y fichas fijos para asegurar armonía y factibilidad de extrusión de plástico/imán.
+* **Fidelidad Técnica:** El diseño del tablero se compone en vista ortogonal 2D para garantizar precisión geométrica, dejando el 3D únicamente para validación visual de profundidad.
 
 # Flujo de Pantallas
 
-## **Flujo de Pantallas: Faro 3D App**
-
 ### **P1. Pantalla de Inicio (The Hub)**
-
-Es la puerta de entrada. Limpia, minimalista, con el logo de Faro 3D.
-
-* **Acción A:** Botón destacado: **"Modo Creación"** (Crea tu propio diseño, con el modal de T&C inicial).  
-* **Acción B:** Botón: **"Catálogo de Autor"** (Ver colecciones cerradas).  
+* **Acción A:** Botón destacado: **"Crear Tablero (Studio)"** (Ingreso al Modo Creación con modal de T&C inicial).
+* **Acción B:** Botón: **"Modelos Listos (Catálogo)"** (Ver tableros y sets prediseñados).
 * **Acción C:** Icono de "Mis Pedidos" en el pie de página.
 
 ### **P2. Pantalla de Catálogo (Línea de Autor)**
+* Galería vertical de modelos temáticos prediseñados. Al seleccionar uno, se accede a una pantalla de detalle con fotos del set físico y el visor 3D con la configuración por defecto para su compra directa.
 
-Navegación tipo galería vertical con scroll infinito de cards con fotos reales del producto terminado. Al tocar un producto, se abre la ficha de detalle para proceder a la compra.
+### **P3. Taller de Composición (El Canvas 2D)**
+* Área de diseño dividida en dos secciones principales:
+  1. **Tablero Interactivo (7 x N slots):** Render ortogonal del tablero donde se pueden colocar, mover y retirar las fichas en sus respectivos días. Controles para agregar/quitar filas y selectores de color para Base, Acento y Texto.
+  2. **Configurador del Pack de Fichas:** Panel inferior o pestaña que permite navegar por el catálogo de iconos, agregarlos al set físico y ajustar la cantidad de cada uno.
+* Botón flotante **"Vista 3D"** para activar la previsualización del tablero en la heladera.
 
-### **P3. Taller de Composición (El "Canvas")**
+### **P4. Ficha Técnica y Resumen del Pedido**
+* **Resumen Visual:** Vista del tablero tal como fue preconfigurado.
+* **Desglose del Pedido:** Detalle de colores, cantidad de filas, desglose de fichas seleccionadas y cantidad de cada una.
+* **Precio del Pedido:** Cálculo de precio estático (funcionalidad de precio dinámico reservada para fases futuras).
+* **Cálculo de Envío:** Cotización postal integrada para Correo Argentino.
 
-Espacio principal de diseño en 2D donde se componen la tapa y contratapa. Contiene el lienzo interactivo, la barra de herramientas de edición de stickers y el selector de galería organizado en solapas. Flotando se encuentra el botón de "Vista 3D" para abrir el visor inmersivo.
-
-### **P4. Ficha Técnica y Envío (Preparación)**
-
-Antes del pago, el usuario completa sus datos:
-* **Resumen Visual:** Tapa y Contratapa lado a lado.
-* **Cálculo de Envío:** Validación postal en tiempo real (con cotizador para Correo Argentino y tarifa plana de contingencia).
-* **Ficha Técnica:** Detalle de colores, stickers y cantidad de relieves.
-
-### **P5. Checkout y Éxito**
-
-* Formulario de pago simulado e integración de subida del pedido a Faro 3D.
-
-### **![][image1]**
+### **P5. Checkout y Compra Exitosa**
+* Formulario de pago simulado e integración de subida del pedido a FaroTracker.
+* Botón **"Compartir diseño"** para exportar el tablero personalizado como imagen PNG.
 
 
