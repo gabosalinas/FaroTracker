@@ -5,15 +5,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const MODELS = [
   {
     id: '1',
-    name: 'Fórmula 1',
+    name: 'Rutina Kids',
     image: require('../../../assets/catalog/Formula1/Formula1.jpg'),
-    tagline: 'EDICIÓN ESPECIAL RACING',
+    tagline: 'EDICIÓN ORGANIZADOR DIARIO',
   },
   {
     id: '2',
-    name: 'Caminito',
+    name: 'Faro Hábitos',
     image: require('../../../assets/catalog/Caminito/Caminito.jpg'),
-    tagline: 'EDICIÓN TANGO Y ARTE PORTEÑO',
+    tagline: 'EDICIÓN SEGUIMIENTO SEMANAL',
   }
 ];
 

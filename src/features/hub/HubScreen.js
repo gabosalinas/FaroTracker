@@ -9,8 +9,8 @@ const HubScreen = ({ navigation }) => {
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
       <View style={styles.header}>
-        <Text style={styles.logo}>FARO 3D</Text>
-        <Text style={styles.tagline}>Cuadernos</Text>
+        <Text style={styles.logo}>FAROTRACKER</Text>
+        <Text style={styles.tagline}>Tableros Magnéticos</Text>
       </View>
 
       <View style={styles.menu}>
@@ -57,9 +57,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    fontSize: 44,
+    fontSize: 32,
     fontWeight: '900',
-    letterSpacing: 6,
+    letterSpacing: 4,
     color: '#FFFFFF',
     textShadowColor: 'rgba(0, 224, 255, 0.9)',
     textShadowOffset: { width: 0, height: 0 },

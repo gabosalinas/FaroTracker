@@ -1,34 +1,53 @@
-import React, { useRef } from 'react';
-import { StyleSheet, Text, Animated, PanResponder, TouchableOpacity, Image, Alert, Dimensions } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { StyleSheet, Text, Animated, PanResponder, TouchableOpacity, Image, Dimensions, View } from 'react-native';
 import { STICKERS } from './StickerPicker';
 import useDesignStore from '../../store/useDesignStore';
 
 const { width } = Dimensions.get('window');
-const CANVAS_SIZE = width * 0.8;
+const BOARD_WIDTH = width * 0.92;
+const PADDING_X = 10;
+const COLUMN_WIDTH = (BOARD_WIDTH - 2 * PADDING_X) / 7;
+const ROW_HEIGHT = 45;
+const HEADER_HEIGHT = 35;
+const TOKEN_RADIUS = 18;
+
+const getSlotPosition = (col, r) => {
+  const centerX = PADDING_X + col * COLUMN_WIDTH + COLUMN_WIDTH / 2;
+  const centerY = HEADER_HEIGHT + r * ROW_HEIGHT + ROW_HEIGHT / 2;
+  return {
+    x: centerX - TOKEN_RADIUS,
+    y: centerY - TOKEN_RADIUS
+  };
+};
 
 const StickerItem = ({ sticker, isSelected, onSelect }) => {
-  const pan = useRef(new Animated.ValueXY({ x: sticker.x || 0, y: sticker.y || 0 })).current;
-  
-  const scaleAnim = useRef(new Animated.Value(sticker.scale || 1)).current;
-  const rotationAnim = useRef(new Animated.Value(sticker.rotation || 0)).current;
+  const { boardColor, accentColor, placeToken, removePlacedToken } = useDesignStore();
 
-  const scaleRef = useRef(sticker.scale || 1);
-  const rotationRef = useRef(sticker.rotation || 0);
+  // Posición inicial estática basada en su celda actual
+  const initialPos = getSlotPosition(sticker.column, sticker.row);
+  const pan = useRef(new Animated.ValueXY(initialPos)).current;
 
-  const updateSticker = useDesignStore(state => state.updateSticker);
-  const removeSticker = useDesignStore(state => state.removeSticker);
+  // Sincronizar posición animada cuando cambian fila o columna
+  useEffect(() => {
+    const pos = getSlotPosition(sticker.column, sticker.row);
+    Animated.spring(pan, {
+      toValue: pos,
+      friction: 7,
+      tension: 40,
+      useNativeDriver: false,
+    }).start();
+  }, [sticker.column, sticker.row]);
 
-  const originalId = sticker.id.split('-')[0];
+  const originalId = sticker.iconId;
   const originalSticker = STICKERS.find(s => s.id === originalId);
   const imageSource = originalSticker ? originalSticker.image : null;
   const iconSource = originalSticker ? originalSticker.icon : null;
 
-  // PanResponder para el movimiento (Drag)
+  // PanResponder para el movimiento de arrastre (Drag & Drop)
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Solo activamos el drag si el movimiento es significativo
-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+        return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
       },
       onPanResponderGrant: () => {
         if (onSelect) onSelect();
@@ -44,89 +63,43 @@ const StickerItem = ({ sticker, isSelected, onSelect }) => {
       ),
       onPanResponderRelease: () => {
         pan.flattenOffset();
-        const x = pan.x._value;
-        const y = pan.y._value;
+        const currentX = pan.x._value;
+        const currentY = pan.y._value;
 
-        // Calcular porcentaje del sticker que queda fuera del lienzo (W_c, H_c)
-        const W_c = CANVAS_SIZE - 20;
-        const H_c = (CANVAS_SIZE * 1.3) - 20;
+        // Coordenadas del centro del token durante el release
+        const tokenCenterX = currentX + TOKEN_RADIUS;
+        const tokenCenterY = currentY + TOKEN_RADIUS;
 
-        const overlap_x = Math.max(0, Math.min(x + 80, W_c) - Math.max(x, 0));
-        const overlap_y = Math.max(0, Math.min(y + 80, H_c) - Math.max(y, 0));
+        // Calcular columna y fila más cercanas
+        const col = Math.round((tokenCenterX - PADDING_X - COLUMN_WIDTH / 2) / COLUMN_WIDTH);
+        const row = Math.round((tokenCenterY - HEADER_HEIGHT - ROW_HEIGHT / 2) / ROW_HEIGHT);
 
-        const area_overlap = overlap_x * overlap_y;
-        const area_total = 6400;
-        const percentage_inside = area_overlap / area_total;
+        const rowCount = useDesignStore.getState().rowCount;
+        const colValid = col >= 0 && col <= 6;
+        const rowValid = row >= 0 && row < rowCount;
 
-        if (percentage_inside < 0.2) {
-          // Más del 80% está por fuera. Confirmar eliminación.
-          Alert.alert(
-            "Borrar Sticker",
-            "¿Querés eliminar este sticker del diseño?",
-            [
-              {
-                text: "No",
-                onPress: () => {
-                  // Ajustar posición para devolverlo completamente dentro del lienzo
-                  const safe_x = Math.max(0, Math.min(x, W_c - 80));
-                  const safe_y = Math.max(0, Math.min(y, H_c - 80));
-                  
-                  updateSticker(sticker.id, { x: safe_x, y: safe_y });
-                  
-                  // Animación suave de rebote hacia la posición segura
-                  Animated.spring(pan, {
-                    toValue: { x: safe_x, y: safe_y },
-                    useNativeDriver: false
-                  }).start();
-                },
-                style: "cancel"
-              },
-              {
-                text: "Sí, Borrar",
-                onPress: () => {
-                  removeSticker(sticker.id);
-                },
-                style: "destructive"
-              }
-            ]
-          );
-        } else {
-          // Menos del 80% afuera, simplemente guardar su nueva posición
-          updateSticker(sticker.id, { x, y });
+        if (colValid && rowValid) {
+          const slotPos = getSlotPosition(col, row);
+          const slotCenterX = slotPos.x + TOKEN_RADIUS;
+          const slotCenterY = slotPos.y + TOKEN_RADIUS;
+          const dist = Math.sqrt(Math.pow(tokenCenterX - slotCenterX, 2) + Math.pow(tokenCenterY - slotCenterY, 2));
+
+          if (dist < 35) {
+            // Imantar al slot
+            placeToken(sticker.id, sticker.iconId, col, row);
+            return;
+          }
         }
+
+        // Si se arrastró muy lejos o fuera, remover del tablero
+        removePlacedToken(sticker.id);
       }
     })
   ).current;
 
-  // Ciclo de escala: 1 -> 1.5 -> 2 -> 1
-  const handleLongPress = () => {
-    if (onSelect) onSelect();
-    scaleRef.current = scaleRef.current >= 4 ? 1 : scaleRef.current + 0.5;
-    updateSticker(sticker.id, { scale: scaleRef.current });
-    Animated.spring(scaleAnim, {
-      toValue: scaleRef.current,
-      useNativeDriver: false
-    }).start();
-  };
-
-  // Ciclo de rotación: +45 grados por tap (sólo si ya está seleccionado, de lo contrario sólo lo selecciona)
   const handlePress = () => {
-    if (!isSelected) {
-      if (onSelect) onSelect();
-    } else {
-      rotationRef.current += 45;
-      updateSticker(sticker.id, { rotation: rotationRef.current });
-      Animated.spring(rotationAnim, {
-        toValue: rotationRef.current,
-        useNativeDriver: false
-      }).start();
-    }
+    if (onSelect) onSelect();
   };
-
-  const rotateStr = rotationAnim.interpolate({
-    inputRange: [0, 360],
-    outputRange: ['0deg', '360deg']
-  });
 
   return (
     <Animated.View
@@ -135,20 +108,19 @@ const StickerItem = ({ sticker, isSelected, onSelect }) => {
         {
           transform: [
             { translateX: pan.x },
-            { translateY: pan.y },
-            { scale: scaleAnim },
-            { rotate: rotateStr }
-          ]
+            { translateY: pan.y }
+          ],
+          backgroundColor: boardColor,
+          borderColor: isSelected ? '#FFFFFF' : accentColor,
         },
         isSelected && styles.selectedContainer
       ]}
       {...panResponder.panHandlers}
     >
       <TouchableOpacity 
-        onPress={handlePress} 
-        onLongPress={handleLongPress}
-        delayLongPress={300}
+        onPress={handlePress}
         activeOpacity={0.8}
+        style={styles.touchable}
       >
         {imageSource ? (
           <Image source={imageSource} style={styles.stickerImage} resizeMode="contain" />
@@ -165,26 +137,42 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     top: 0,
-    width: 80,
-    height: 80,
+    width: TOKEN_RADIUS * 2,
+    height: TOKEN_RADIUS * 2,
+    borderRadius: TOKEN_RADIUS,
+    borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
+    // Sombra premium para simular relieve físico de la ficha
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  touchable: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   stickerImage: {
-    width: 80,
-    height: 80,
+    width: 24,
+    height: 24,
   },
   stickerIcon: {
-    fontSize: 60,
+    fontSize: 20,
     textAlign: 'center',
   },
   selectedContainer: {
-    borderWidth: 1.5,
-    borderColor: '#00E0FF',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 224, 255, 0.05)',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#00E0FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 5,
+    elevation: 8,
   },
 });
 

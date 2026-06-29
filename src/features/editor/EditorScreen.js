@@ -15,58 +15,64 @@ import { STICKERS_BASE64 } from './StickersBase64';
 import { TERMS_AND_CONDITIONS } from './termsText';
 
 const { width } = Dimensions.get('window');
-const CANVAS_SIZE = width * 0.8;
-const CANVAS_WIDTH = CANVAS_SIZE - 20;
+const BOARD_WIDTH = width * 0.92;
+const PADDING_X = 10;
+const COLUMN_WIDTH = (BOARD_WIDTH - 2 * PADDING_X) / 7;
+const ROW_HEIGHT = 45;
+const HEADER_HEIGHT = 35;
+const TOKEN_RADIUS = 18;
 
-const MINI_NOTEBOOK_WIDTH = 110;
-const MINI_NOTEBOOK_HEIGHT = 150;
-const MINI_PADDING = 10;
-const MINI_CANVAS_WIDTH = MINI_NOTEBOOK_WIDTH - (MINI_PADDING * 2);
-const scaleFactor = MINI_CANVAS_WIDTH / CANVAS_WIDTH;
+// Dimensiones de la vista previa pequeña en el resumen
+const MINI_BOARD_WIDTH = 180;
+const MINI_PADDING_X = 6;
+const MINI_COLUMN_WIDTH = (MINI_BOARD_WIDTH - 2 * MINI_PADDING_X) / 7;
+const MINI_ROW_HEIGHT = 26;
+const MINI_HEADER_HEIGHT = 18;
+const MINI_TOKEN_RADIUS = 9;
 
-const WHATSAPP_NUMBER = '5491163000370'; // WhatsApp de Faro3D
+const WHATSAPP_NUMBER = '5491163000370'; // WhatsApp de FaroTracker
 const alias = 'somosfaro3d';
-const ORDER_COST_DISPLAY = '$31.500';
+const ORDER_COST_DISPLAY = '$27.800'; // Precio base
 const GOOGLE_DRIVE_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbwGJSz3WcXfN4RNtvOm9G506Soh00mzZ2pwMdnx1cDecNhHKtpsSbp3kGH3Ooh4yJzYuw/exec';
 
-const MiniSticker = ({ sticker }) => {
-  const originalId = sticker.id.split('-')[0];
+const MiniToken = ({ token }) => {
+  const originalId = token.iconId;
   const originalSticker = STICKERS.find(s => s.id === originalId);
   const imageSource = originalSticker ? originalSticker.image : null;
   const iconSource = originalSticker ? originalSticker.icon : null;
 
-  const widthHeight = 100 * scaleFactor;
-  const tx = sticker.x * scaleFactor;
-  const ty = sticker.y * scaleFactor;
-  const rotation = sticker.rotation || 0;
-  const scale = sticker.scale || 1;
+  // Calcular coordenadas relativas para la miniatura
+  const centerX = MINI_PADDING_X + token.column * MINI_COLUMN_WIDTH + MINI_COLUMN_WIDTH / 2;
+  const centerY = MINI_HEADER_HEIGHT + token.row * MINI_ROW_HEIGHT + MINI_ROW_HEIGHT / 2;
+  const tx = centerX - MINI_TOKEN_RADIUS;
+  const ty = centerY - MINI_TOKEN_RADIUS;
+
+  const { boardColor, accentColor } = useDesignStore.getState();
 
   return (
     <View
       style={{
         position: 'absolute',
-        width: widthHeight,
-        height: widthHeight,
+        width: MINI_TOKEN_RADIUS * 2,
+        height: MINI_TOKEN_RADIUS * 2,
+        borderRadius: MINI_TOKEN_RADIUS,
+        borderWidth: 1,
+        borderColor: accentColor,
+        backgroundColor: boardColor,
         justifyContent: 'center',
         alignItems: 'center',
-        left: 0,
-        top: 0,
-        transform: [
-          { translateX: tx },
-          { translateY: ty },
-          { scale: scale },
-          { rotate: `${rotation}deg` }
-        ]
+        left: tx,
+        top: ty,
       }}
     >
       {imageSource ? (
         <Image
           source={imageSource}
-          style={{ width: 80 * scaleFactor, height: 80 * scaleFactor }}
+          style={{ width: MINI_TOKEN_RADIUS * 1.3, height: MINI_TOKEN_RADIUS * 1.3 }}
           resizeMode="contain"
         />
       ) : (
-        <Text style={{ fontSize: 60 * scaleFactor, textAlign: 'center' }}>
+        <Text style={{ fontSize: MINI_TOKEN_RADIUS * 1.1, textAlign: 'center' }}>
           {iconSource}
         </Text>
       )}
@@ -85,7 +91,7 @@ const EditorScreen = ({ navigation }) => {
   const [selectedStickerId, setSelectedStickerId] = React.useState(null);
   const [colorPickerVisible, setColorPickerVisible] = React.useState(false);
   const [colorPickerTitle, setColorPickerTitle] = React.useState('');
-  const [colorPickerTarget, setColorPickerTarget] = React.useState('base');
+  const [colorPickerTarget, setColorPickerTarget] = React.useState('base'); // 'base', 'accent', 'text'
   const [postalCode, setPostalCode] = React.useState('');
   const [shippingCost, setShippingCost] = React.useState(null);
   const [isCalculatingShipping, setIsCalculatingShipping] = React.useState(false);
@@ -94,38 +100,35 @@ const EditorScreen = ({ navigation }) => {
   const [isStoreHydrated, setIsStoreHydrated] = React.useState(false);
 
   const scrollViewRef = React.useRef();
-  const frontViewShotRef = React.useRef();
-  const backViewShotRef = React.useRef();
-
+  const boardViewShotRef = React.useRef();
   const toastOpacity = React.useRef(new Animated.Value(0)).current;
   const toastTimeout = React.useRef(null);
   const scrollXAnim = React.useRef(new Animated.Value(0)).current;
 
   const {
-    frontBaseColor,
-    frontCanvasColor,
-    backBaseColor,
-    backCanvasColor,
-    setBaseColor,
-    setCanvasColor,
-    currentSide,
-    setCurrentSide,
-    frontStickers,
-    backStickers,
-    addSticker,
-    updateSticker,
-    removeSticker,
+    boardColor,
+    accentColor,
+    textColor,
+    rowCount,
+    tokenPack,
+    placedTokens,
+    setBoardColor,
+    setAccentColor,
+    setTextColor,
+    setRowCount,
+    updateTokenPackQuantity,
+    placeToken,
+    removePlacedToken,
     resetDesign
   } = useDesignStore();
 
-  const stickers = currentSide === 'front' ? frontStickers : backStickers;
-  const baseColor = currentSide === 'front' ? frontBaseColor : backBaseColor;
-  const canvasColor = currentSide === 'front' ? frontCanvasColor : backCanvasColor;
-  const colors = ['#1A1A1A', '#FFFFFF', '#E5E5E5', '#FF3B30', '#4CD964', '#007AFF', '#FFCC00'];
+  const colors = {
+    base: ['#004F7C', '#1A1A1A', '#5E3A8C', '#2E5A27', '#8C3B3B', '#D28B2B'],
+    accent: ['#0A2B44', '#000000', '#2E1254', '#122D10', '#3D1515', '#573305', '#FFFFFF'],
+    text: ['#8C7D70', '#FFFFFF', '#00E0FF', '#CCCCCC', '#000000']
+  };
 
-  const selectedSticker = stickers.find(s => s.id === selectedStickerId);
-
-  const flipAnim = React.useRef(new Animated.Value(0)).current;
+  const selectedToken = placedTokens.find(s => s.id === selectedStickerId);
 
   // Limpiar timer de toast y listener de scroll al desmontar
   React.useEffect(() => {
@@ -187,7 +190,7 @@ const EditorScreen = ({ navigation }) => {
           originZipCode: '1716',
           destinationZipCode: cp,
           packageWeightGrams: 500,
-          dimensions: { length: 21, width: 15, height: 2 }
+          dimensions: { length: 30, width: 20, height: 2 }
         }),
       });
 
@@ -268,40 +271,35 @@ const EditorScreen = ({ navigation }) => {
     }, 2000);
   };
 
-  const handleToggleSide = () => {
-    Animated.timing(flipAnim, {
-      toValue: 90,
-      duration: 150,
-      useNativeDriver: true,
-    }).start(() => {
-      setCurrentSide(currentSide === 'front' ? 'back' : 'front');
-      flipAnim.setValue(-90);
-      Animated.spring(flipAnim, {
-        toValue: 0,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      }).start();
-    });
+  const handleSelectSticker = (sticker) => {
+    updateTokenPackQuantity(sticker.id, 1);
+    showToast("Ficha agregada al pack físico!");
   };
 
-  const flipStr = flipAnim.interpolate({
-    inputRange: [-90, 0, 90],
-    outputRange: ['-90deg', '0deg', '90deg']
-  });
+  const handleSpawnTokenOnGrid = (iconId) => {
+    // Verificar si quedan tokens de este tipo disponibles para colocar
+    const placedCount = placedTokens.filter(t => t.iconId === iconId).length;
+    const packItem = tokenPack.find(t => t.iconId === iconId);
+    const totalQty = packItem ? packItem.quantity : 0;
 
-  const handleSelectSticker = (sticker) => {
-    const newStickerId = `${sticker.id}-${Date.now()}`;
-    addSticker({
-      ...sticker,
-      id: newStickerId, // ID único
-      x: 0,
-      y: 0,
-      scale: 1,
-      rotation: 0,
-      heightLevel: 3 // Default height level
-    });
-    setSelectedStickerId(newStickerId);
+    if (placedCount >= totalQty) {
+      showToast("Ya colocaste todas las fichas de este tipo disponibles.");
+      return;
+    }
+
+    // Buscar primera posición libre en la cuadrícula
+    for (let r = 0; r < rowCount; r++) {
+      for (let c = 0; c < 7; c++) {
+        const occupied = placedTokens.some(t => t.column === c && t.row === r);
+        if (!occupied) {
+          const uniqueId = `${iconId}-${Date.now()}`;
+          placeToken(uniqueId, iconId, c, r);
+          showToast("Colocada en el tablero");
+          return;
+        }
+      }
+    }
+    showToast("¡El tablero está lleno!");
   };
 
   const scrollToPage = (page) => {
@@ -314,7 +312,14 @@ const EditorScreen = ({ navigation }) => {
   };
 
   const handleSubirPedido = () => {
-    scrollToPage(1);
+    if (placedTokens.length === 0) {
+      Alert.alert("Tablero Vacío", "¿Querés proceder a revisar tu tablero sin ninguna ficha colocada?", [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Continuar", onPress: () => scrollToPage(1) }
+      ]);
+    } else {
+      scrollToPage(1);
+    }
   };
 
   const handleConfirmAndGoToCheckout = () => {
@@ -369,15 +374,6 @@ const EditorScreen = ({ navigation }) => {
       }
     }
 
-    for (const scheme of schemes) {
-      try {
-        await Linking.openURL(scheme);
-        return true;
-      } catch (err) {
-        console.log(`No se pudo abrir el esquema ${scheme} directamente:`, err);
-      }
-    }
-
     try {
       await Linking.openURL('https://www.mercadopago.com.ar');
       return true;
@@ -387,7 +383,7 @@ const EditorScreen = ({ navigation }) => {
     }
   };
 
-  const uploadToGoogleDriveBackground = async (frontBase64, backBase64) => {
+  const uploadToGoogleDriveBackground = async (boardBase64) => {
     if (!GOOGLE_DRIVE_UPLOAD_URL || GOOGLE_DRIVE_UPLOAD_URL.includes('placeholder')) {
       console.log("Subida a Google Drive omitida: URL de Apps Script no configurada.");
       return;
@@ -396,8 +392,8 @@ const EditorScreen = ({ navigation }) => {
     try {
       const payload = {
         folderName: orderId,
-        frontImage: frontBase64,
-        backImage: backBase64,
+        frontImage: boardBase64,
+        backImage: "",
         postalCode: postalCode
       };
 
@@ -417,38 +413,31 @@ const EditorScreen = ({ navigation }) => {
   };
 
   const proceedToWhatsAppAndHome = async () => {
-    const formatStickersList = (stickers) => {
-      if (!stickers || stickers.length === 0) return 'Ninguno';
-      const counts = {};
-      stickers.forEach(s => {
-        const baseId = s.id.split('-')[0];
-        const found = STICKERS.find(item => item.id === baseId);
-        const name = found ? found.name : baseId;
-        counts[name] = (counts[name] || 0) + 1;
-      });
-      const formatted = Object.entries(counts).map(([name, count]) => {
-        return count > 1 ? `${name} x ${count}` : name;
-      });
-      return formatted.join(', ');
+    const formatPackList = () => {
+      if (!tokenPack || tokenPack.length === 0) return 'Ninguna';
+      return tokenPack.map(t => {
+        const found = STICKERS.find(item => item.id === t.iconId);
+        const name = found ? found.name : t.iconId;
+        return `${name} x${t.quantity}`;
+      }).join(', ');
     };
 
     let text = `Ya realice el pago para el pedido ID ${orderId}\n`;
     text += `Código Postal: ${postalCode}\n`;
     if (shippingCost !== null) {
       text += `Envío (Correo Argentino): ${formatCurrency(shippingCost)}\n`;
-      text += `Total Pagado: ${formatCurrency(31500 + shippingCost)}\n\n`;
+      text += `Total Pagado: ${formatCurrency(27800 + shippingCost)}\n\n`;
     } else {
       text += `Total Pagado: ${ORDER_COST_DISPLAY}\n\n`;
     }
-    text += `Detalles de mi diseño Faro3D:\n`;
-    text += `• TAPA:\n`;
-    text += `  - Color de Marco: ${frontBaseColor || 'Default'}\n`;
-    text += `  - Color de Fondo: ${frontCanvasColor || 'Default'}\n`;
-    text += `  - Stickers: ${formatStickersList(frontStickers)}\n\n`;
-    text += `• CONTRATAPA:\n`;
-    text += `  - Color de Marco: ${backBaseColor || 'Default'}\n`;
-    text += `  - Color de Fondo: ${backCanvasColor || 'Default'}\n`;
-    text += `  - Stickers: ${formatStickersList(backStickers)}`;
+    text += `Detalles de mi tablero FaroTracker:\n`;
+    text += `• TABLERO:\n`;
+    text += `  - Color de Base: ${boardColor}\n`;
+    text += `  - Color de Acento: ${accentColor}\n`;
+    text += `  - Color de Texto de Días: ${textColor}\n`;
+    text += `  - Filas: ${rowCount}\n`;
+    text += `  - Set de Fichas físico: ${formatPackList()}\n`;
+    text += `  - Fichas colocadas en grid: ${placedTokens.length} colocadas`;
 
     const url = `whatsapp://send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(text)}`;
     const webUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
@@ -472,26 +461,22 @@ const EditorScreen = ({ navigation }) => {
     if (isProcessingPayment) return;
     setIsProcessingPayment(true);
 
-    // Pequeño timeout para permitir que el loading spinner se renderice en el botón
     setTimeout(async () => {
       try {
-        const frontBase64 = await frontViewShotRef.current.capture({ format: 'jpg', quality: 0.9, result: 'base64' });
-        const backBase64 = await backViewShotRef.current.capture({ format: 'jpg', quality: 0.9, result: 'base64' });
+        const boardBase64 = await boardViewShotRef.current.capture({ format: 'jpg', quality: 0.9, result: 'base64' });
 
         // Iniciar subida en segundo plano
-        uploadToGoogleDriveBackground(frontBase64, backBase64);
+        uploadToGoogleDriveBackground(boardBase64);
 
-        // Mostrar el tooltip flotante desvanecible
         showToast("¡Pedido realizado!");
 
-        // Esperar 1.5s antes de abrir WhatsApp y volver al Hub
         setTimeout(async () => {
           await proceedToWhatsAppAndHome();
         }, 1500);
 
       } catch (error) {
-        console.log("Error al capturar imágenes en checkout:", error);
-        Alert.alert("Error", "No se pudo procesar el diseño.");
+        console.log("Error al capturar imagen del tablero:", error);
+        Alert.alert("Error", "No se pudo procesar la captura de tu tablero.");
         setIsProcessingPayment(false);
       }
     }, 50);
@@ -499,7 +484,6 @@ const EditorScreen = ({ navigation }) => {
 
   const getAssetBase64 = async (imageModule, stickerId) => {
     try {
-      // 1. Try to find the pre-generated base64 mapping first (100% offline & foolproof)
       const originalId = stickerId.split('-')[0];
       const originalSticker = STICKERS.find((item) => item.id === originalId);
       if (originalSticker?.fileName && STICKERS_BASE64[originalSticker.fileName]) {
@@ -507,7 +491,6 @@ const EditorScreen = ({ navigation }) => {
         return fullBase64.split(',')[1];
       }
 
-      // 2. Fallback to reading the file from the device filesystem if not pre-generated
       const [asset] = await Asset.loadAsync(imageModule);
       await asset.downloadAsync();
       
@@ -524,7 +507,7 @@ const EditorScreen = ({ navigation }) => {
               const downloadResult = await FileSystem.downloadAsync(asset.uri, cacheUri);
               fileUri = downloadResult.uri;
             } catch (err) {
-              console.log("Download failed, trying direct uri:", err);
+              console.log("Download failed:", err);
             }
           }
         }
@@ -532,21 +515,14 @@ const EditorScreen = ({ navigation }) => {
       
       if (fileUri) {
         if (!fileUri.startsWith('file://') && !fileUri.startsWith('http://') && !fileUri.startsWith('https://')) {
-          if (fileUri.startsWith('file:/')) {
-            fileUri = fileUri.replace('file:/', 'file:///');
-          } else {
-            fileUri = `file://${fileUri}`;
-          }
+          fileUri = fileUri.startsWith('file:/') ? fileUri.replace('file:/', 'file:///') : `file://${fileUri}`;
         }
       }
       
-      if (!fileUri) {
-        throw new Error("No file URI resolved.");
-      }
-      
+      if (!fileUri) throw new Error("No file URI");
       return await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 });
     } catch (error) {
-      console.log(`Error reading asset for sticker ${stickerId}:`, error);
+      console.log(`Error reading asset for token ${stickerId}:`, error);
       return null;
     }
   };
@@ -556,58 +532,28 @@ const EditorScreen = ({ navigation }) => {
     setIsGenerating3D(true);
     
     try {
-      // 1. Resolve and read front stickers as base64
-      const frontStickersData = await Promise.all(
-        frontStickers.map(async (s) => {
-          const originalId = s.id.split('-')[0];
+      // Resolver y codificar los tokens en base64 para inyectar en WebView
+      const tokensData = await Promise.all(
+        placedTokens.map(async (t) => {
+          const originalId = t.iconId;
           const originalSticker = STICKERS.find((item) => item.id === originalId);
           
           let base64 = null;
           if (originalSticker?.image) {
-            base64 = await getAssetBase64(originalSticker.image, s.id);
+            base64 = await getAssetBase64(originalSticker.image, t.id);
           }
           
           return {
-            id: s.id,
+            id: t.id,
+            iconId: t.iconId,
+            column: t.column,
+            row: t.row,
             imageBase64: base64 ? `data:image/png;base64,${base64}` : null,
             remoteUrl: originalSticker?.fileName ? `https://raw.githubusercontent.com/gabosalinas/FaroTracker/master/assets/stickers/${encodeURIComponent(originalSticker.fileName)}` : null,
-            icon: originalSticker?.icon || null,
-            x: s.x,
-            y: s.y,
-            scale: s.scale || 1,
-            rotation: s.rotation || 0,
-            heightLevel: 3,
+            icon: originalSticker?.icon || null
           };
         })
       );
-
-      // 2. Resolve and read back stickers as base64
-      const backStickersData = await Promise.all(
-        backStickers.map(async (s) => {
-          const originalId = s.id.split('-')[0];
-          const originalSticker = STICKERS.find((item) => item.id === originalId);
-          
-          let base64 = null;
-          if (originalSticker?.image) {
-            base64 = await getAssetBase64(originalSticker.image, s.id);
-          }
-          
-          return {
-            id: s.id,
-            imageBase64: base64 ? `data:image/png;base64,${base64}` : null,
-            remoteUrl: originalSticker?.fileName ? `https://raw.githubusercontent.com/gabosalinas/FaroTracker/master/assets/stickers/${encodeURIComponent(originalSticker.fileName)}` : null,
-            icon: originalSticker?.icon || null,
-            x: s.x,
-            y: s.y,
-            scale: s.scale || 1,
-            rotation: s.rotation || 0,
-            heightLevel: 3,
-          };
-        })
-      );
-
-      const W_c = CANVAS_SIZE - 20;
-      const H_c = CANVAS_SIZE * 1.3 - 20;
 
       const htmlContent = `
         <!DOCTYPE html>
@@ -645,7 +591,6 @@ const EditorScreen = ({ navigation }) => {
             }
           </style>
           <script>
-            // Forward WebView console logs to React Native
             const logToRN = (type, args) => {
               if (window.ReactNativeWebView) {
                 window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -664,37 +609,28 @@ const EditorScreen = ({ navigation }) => {
             console.log = (...args) => logToRN('log', args);
             console.error = (...args) => logToRN('error', args);
             console.warn = (...args) => logToRN('warn', args);
-            window.onerror = (message, source, lineno, colno, error) => {
-              logToRN('error', ['Global error:', message, 'at', source, 'line', lineno, 'col', colno, error]);
-              return false;
-            };
           </script>
           <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
           <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
         </head>
         <body>
-          <div id="loading" class="loader">Generando 3D...</div>
+          <div id="loading" class="loader">Generando Vista 3D...</div>
           <div id="canvas-container"></div>
 
           <script>
-            // Data passed from React Native
-            const frontBaseColor = "${frontBaseColor}";
-            const backBaseColor = "${backBaseColor}";
-            const frontCanvasColor = "${frontCanvasColor}";
-            const backCanvasColor = "${backCanvasColor}";
-            const frontStickers = ${JSON.stringify(frontStickersData)};
-            const backStickers = ${JSON.stringify(backStickersData)};
-            const W_c = ${W_c};
-            const H_c = ${H_c};
+            const boardColor = "${boardColor}";
+            const accentColor = "${accentColor}";
+            const textColor = "${textColor}";
+            const rowCount = ${rowCount};
+            const placedTokens = ${JSON.stringify(tokensData)};
 
             // Setup scene
             const container = document.getElementById('canvas-container');
             const scene = new THREE.Scene();
-            // scene.fog = new THREE.FogExp2(0x000000, 0.15);
 
             // Camera
             const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.set(0, 0, 4.5);
+            camera.position.set(0, 0, 3.5);
 
             // Renderer
             const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -702,7 +638,6 @@ const EditorScreen = ({ navigation }) => {
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.localClippingEnabled = true;
             container.appendChild(renderer.domElement);
 
             // Controls
@@ -710,465 +645,207 @@ const EditorScreen = ({ navigation }) => {
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
             controls.maxPolarAngle = Math.PI / 2 + 0.1;
-            controls.minDistance = 2;
-            controls.maxDistance = 10;
+            controls.minDistance = 1.5;
+            controls.maxDistance = 6;
 
             // Lights
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
             scene.add(ambientLight);
 
-            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.3);
-            dirLight1.position.set(5, 5, 5);
-            dirLight1.castShadow = true;
-            dirLight1.shadow.mapSize.width = 1024;
-            dirLight1.shadow.mapSize.height = 1024;
-            dirLight1.shadow.camera.near = 4;
-            dirLight1.shadow.camera.far = 12;
-            dirLight1.shadow.camera.left = -2.2;
-            dirLight1.shadow.camera.right = 2.2;
-            dirLight1.shadow.camera.top = 2.2;
-            dirLight1.shadow.camera.bottom = -2.2;
-            dirLight1.shadow.bias = -0.0005;
-            scene.add(dirLight1);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+            dirLight.position.set(2, 4, 5);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.bias = -0.0005;
+            scene.add(dirLight);
 
-            scene.add(camera);
+            const fridgeLight = new THREE.PointLight(0xffffff, 0.35, 10);
+            fridgeLight.position.set(-2, 3, 4);
+            scene.add(fridgeLight);
 
-            // Helper to generate text/emoji textures on canvas
+            // 1. Metal Fridge Door Background
+            const fridgeGeom = new THREE.PlaneGeometry(25, 25);
+            const fridgeMat = new THREE.MeshStandardMaterial({
+              color: 0xd0d4d9,
+              roughness: 0.28,
+              metalness: 0.85
+            });
+            const fridgeMesh = new THREE.Mesh(fridgeGeom, fridgeMat);
+            fridgeMesh.position.z = -0.15;
+            fridgeMesh.receiveShadow = true;
+            scene.add(fridgeMesh);
+
+            // 2. Dynamic Board Texture Generator (Canvas)
+            function createBoardTexture(bColor, aColor, tColor, rows) {
+              const canvas = document.createElement('canvas');
+              canvas.width = 1024;
+              canvas.height = 1024;
+              const ctx = canvas.getContext('2d');
+              
+              // Base Color
+              ctx.fillStyle = bColor;
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              
+              // Header Font
+              ctx.font = 'bold 50px Courier New, sans-serif';
+              ctx.fillStyle = tColor;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              
+              const colW = canvas.width / 7;
+              const days = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'];
+              
+              for (let c = 0; c < 7; c++) {
+                const x = c * colW + colW / 2;
+                ctx.fillText(days[c], x, 70);
+              }
+              
+              // Draw slot rings
+              ctx.strokeStyle = aColor;
+              ctx.lineWidth = 5;
+              const startY = 150;
+              const rowH = (canvas.height - startY - 30) / rows;
+              
+              for (let r = 0; r < rows; r++) {
+                const y = startY + r * rowH + rowH / 2;
+                for (let c = 0; c < 7; c++) {
+                  const x = c * colW + colW / 2;
+                  ctx.beginPath();
+                  ctx.arc(x, y, 44, 0, Math.PI * 2);
+                  ctx.stroke();
+                }
+              }
+              
+              const tex = new THREE.CanvasTexture(canvas);
+              tex.wrapS = THREE.ClampToEdgeWrapping;
+              tex.wrapT = THREE.ClampToEdgeWrapping;
+              return tex;
+            }
+
+            // 3. Board Mesh
+            const boardW = 2.4;
+            const boardH = 0.35 + rowCount * 0.45;
+            const boardT = 0.03;
+
+            const boardGeom = new THREE.BoxGeometry(boardW, boardH, boardT);
+            
+            const boardFrontTex = createBoardTexture(boardColor, accentColor, textColor, rowCount);
+            const frontMat = new THREE.MeshStandardMaterial({
+              map: boardFrontTex,
+              roughness: 0.6,
+              metalness: 0.1
+            });
+            const sideMat = new THREE.MeshStandardMaterial({
+              color: parseInt(boardColor.replace('#', '0x')),
+              roughness: 0.6,
+              metalness: 0.1
+            });
+
+            // Materials array: Right, Left, Top, Bottom, Front, Back
+            const boardMaterials = [sideMat, sideMat, sideMat, sideMat, frontMat, sideMat];
+            
+            const boardMesh = new THREE.Mesh(boardGeom, boardMaterials);
+            boardMesh.castShadow = true;
+            boardMesh.receiveShadow = true;
+            scene.add(boardMesh);
+
+            // 4. Generate text/emoji textures on canvas
             function createEmojiTexture(emoji) {
               const canvas = document.createElement('canvas');
               canvas.width = 256;
               canvas.height = 256;
               const ctx = canvas.getContext('2d');
-              ctx.font = '160px sans-serif';
+              ctx.font = '150px sans-serif';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(emoji, 128, 128);
               return new THREE.CanvasTexture(canvas);
             }
 
-            // Create raised frame helper
-            function addFrame(parentMesh, width, height, coverT, margin, frameDepth, material, isBack = false) {
-              const w = width;
-              const h = height;
-              const t = coverT;
-              const m = margin;
-              const d = frameDepth;
-
-              const topBottomGeom = new THREE.BoxGeometry(w, m, d);
-              const leftRightGeom = new THREE.BoxGeometry(m, h - 2 * m, d);
-              const zPos = isBack ? -(t/2 + d/2) : (t/2 + d/2);
-
-              const meshes = [
-                new THREE.Mesh(topBottomGeom, material),
-                new THREE.Mesh(topBottomGeom, material),
-                new THREE.Mesh(leftRightGeom, material),
-                new THREE.Mesh(leftRightGeom, material)
-              ];
-
-              meshes[0].position.set(0, h/2 - m/2, zPos);
-              meshes[1].position.set(0, -(h/2 - m/2), zPos);
-              meshes[2].position.set(-(w/2 - m/2), 0, zPos);
-              meshes[3].position.set(w/2 - m/2, 0, zPos);
-
-              meshes.forEach(mesh => {
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                parentMesh.add(mesh);
-              });
-            }
-
-            // Cover Dimensions
-            const w = 1.4;
-            const h = w * 1.3; // Matches 2D cover height aspect ratio (1.3 * CANVAS_SIZE)
-            const t = 0.04;
-            const pagesT = 0.04; // Half the thickness for a thinner notebook (fewer pages)
-
-            const frontBaseColorHex = parseInt(frontBaseColor.replace('#', '0x'));
-            const backBaseColorHex = parseInt(backBaseColor.replace('#', '0x'));
-            const frontCanvasColorHex = parseInt(frontCanvasColor.replace('#', '0x'));
-            const backCanvasColorHex = parseInt(backCanvasColor.replace('#', '0x'));
-
-            const sideMaterialFront = new THREE.MeshStandardMaterial({ color: frontBaseColorHex, roughness: 1.0, metalness: 0.0 });
-            const sideMaterialBack = new THREE.MeshStandardMaterial({ color: backBaseColorHex, roughness: 1.0, metalness: 0.0 });
-
-            // Create notebook group
-            const notebookGroup = new THREE.Group();
-            scene.add(notebookGroup);
-
-            // 1. Front Cover Mesh (Solid Base Color)
-            const frontCoverGeom = new THREE.BoxGeometry(w, h, t);
-            const frontCoverMesh = new THREE.Mesh(frontCoverGeom, sideMaterialFront);
-            frontCoverMesh.position.z = pagesT/2 + t/2;
-            frontCoverMesh.castShadow = true;
-            frontCoverMesh.receiveShadow = true;
-            notebookGroup.add(frontCoverMesh);
-
-            // Recessed Canvas
-            const CANVAS_SIZE = W_c + 20;
-            const margin3D = w * (10 / CANVAS_SIZE);
-            const canvasW = w - 2 * margin3D;
-            const canvasH = h - 2 * margin3D;
-
-            const frontClippingPlanes = [
-              new THREE.Plane(),
-              new THREE.Plane(),
-              new THREE.Plane(),
-              new THREE.Plane()
-            ];
-            const backClippingPlanes = [
-              new THREE.Plane(),
-              new THREE.Plane(),
-              new THREE.Plane(),
-              new THREE.Plane()
-            ];
-
-            const localFrontPlanes = [
-              new THREE.Plane(new THREE.Vector3(-1, 0, 0), canvasW / 2),
-              new THREE.Plane(new THREE.Vector3(1, 0, 0), canvasW / 2),
-              new THREE.Plane(new THREE.Vector3(0, -1, 0), canvasH / 2),
-              new THREE.Plane(new THREE.Vector3(0, 1, 0), canvasH / 2)
-            ];
-
-            const localBackPlanes = [
-              new THREE.Plane(new THREE.Vector3(-1, 0, 0), canvasW / 2),
-              new THREE.Plane(new THREE.Vector3(1, 0, 0), canvasW / 2),
-              new THREE.Plane(new THREE.Vector3(0, -1, 0), canvasH / 2),
-              new THREE.Plane(new THREE.Vector3(0, 1, 0), canvasH / 2)
-            ];
-
-            const frontCanvasGeom = new THREE.PlaneGeometry(canvasW, canvasH);
-            const frontCanvasMat = new THREE.MeshStandardMaterial({ color: frontCanvasColorHex, roughness: 1.0, metalness: 0.0 });
-            const frontCanvasMesh = new THREE.Mesh(frontCanvasGeom, frontCanvasMat);
-            frontCanvasMesh.position.z = t/2 + 0.001;
-            frontCanvasMesh.receiveShadow = true;
-            frontCoverMesh.add(frontCanvasMesh);
-
-            // Add raised frame
-            addFrame(frontCoverMesh, w, h, t, margin3D, 0.015, sideMaterialFront, false);
-
-            // 2. Back Cover Mesh (Solid Base Color)
-            const backCoverGeom = new THREE.BoxGeometry(w, h, t);
-            const backCoverMesh = new THREE.Mesh(backCoverGeom, sideMaterialBack);
-            backCoverMesh.position.z = -(pagesT/2 + t/2);
-            backCoverMesh.castShadow = true;
-            backCoverMesh.receiveShadow = true;
-            notebookGroup.add(backCoverMesh);
-
-            // Recessed Canvas Back
-            const backCanvasGeom = new THREE.PlaneGeometry(canvasW, canvasH);
-            const backCanvasMat = new THREE.MeshStandardMaterial({ color: backCanvasColorHex, roughness: 1.0, metalness: 0.0 });
-            const backCanvasMesh = new THREE.Mesh(backCanvasGeom, backCanvasMat);
-            backCanvasMesh.rotation.y = Math.PI;
-            backCanvasMesh.position.z = -(t/2 + 0.001);
-            backCanvasMesh.receiveShadow = true;
-            backCoverMesh.add(backCanvasMesh);
-
-            // Add raised frame back
-            addFrame(backCoverMesh, w, h, t, margin3D, 0.015, sideMaterialBack, true);
-
-            // Helper to generate paper stack texture with sheet stripes
-            function createPaperTexture(horizontal = true) {
-              const canvas = document.createElement('canvas');
-              canvas.width = 256;
-              canvas.height = 256;
-              const ctx = canvas.getContext('2d');
-              ctx.fillStyle = '#fdfdfd'; // Clean bright paper white
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
-              
-              ctx.strokeStyle = '#1a1a1a'; // Dark black-grey gaps
-              ctx.lineWidth = 4.0; // Thicker lines
-              const steps = 10; // Only 10 stripes
-              for (let i = 0; i <= steps; i++) {
-                const val = (i / steps) * 256;
-                ctx.beginPath();
-                if (horizontal) {
-                  ctx.moveTo(0, val);
-                  ctx.lineTo(256, val);
-                } else {
-                  ctx.moveTo(val, 0);
-                  ctx.lineTo(val, 256);
-                }
-                ctx.stroke();
-              }
-              const texture = new THREE.CanvasTexture(canvas);
-              texture.wrapS = THREE.RepeatWrapping;
-              texture.wrapT = THREE.RepeatWrapping;
-              texture.minFilter = THREE.NearestFilter;
-              texture.magFilter = THREE.NearestFilter;
-              return texture;
-            }
-
-            // 3. Paper Pages with sheet texture
-            const paperGeom = new THREE.BoxGeometry(w - 0.04, h - 0.04, pagesT);
-            
-            const paperMatX = new THREE.MeshStandardMaterial({ 
-              map: createPaperTexture(false), // Vertical stripes for Left/Right sides where Z maps to U
-              roughness: 1.0, 
-              metalness: 0.0 
-            });
-            const paperMatY = new THREE.MeshStandardMaterial({ 
-              map: createPaperTexture(true),  // Horizontal stripes for Top/Bottom sides where Z maps to V
-              roughness: 1.0, 
-              metalness: 0.0 
-            });
-            const paperMatZ = new THREE.MeshStandardMaterial({ 
-              color: 0xd0d0d0, 
-              roughness: 1.0, 
-              metalness: 0.0 
-            });
-
-            const paperMaterials = [
-              paperMatX, // Right (+X)
-              paperMatX, // Left (-X)
-              paperMatY, // Top (+Y)
-              paperMatY, // Bottom (-Y)
-              paperMatZ, // Front (+Z)
-              paperMatZ  // Back (-Z)
-            ];
-
-            const paperMesh = new THREE.Mesh(paperGeom, paperMaterials);
-            paperMesh.castShadow = true;
-            paperMesh.receiveShadow = true;
-            notebookGroup.add(paperMesh);
-
-            // Custom Helix Curve for realistic notebook spiral
-            class HelixCurve extends THREE.Curve {
-              constructor(radius, height, turns, startY) {
-                super();
-                this.radius = radius;
-                this.height = height;
-                this.turns = turns;
-                this.startY = startY;
-              }
-              getPoint(t, optionalTarget = new THREE.Vector3()) {
-                const angle = t * this.turns * 2 * Math.PI;
-                const tx = this.radius * Math.cos(angle);
-                const tz = this.radius * Math.sin(angle);
-                const ty = this.startY - t * this.height;
-                return optionalTarget.set(tx, ty, tz);
-              }
-            }
-
-            // 4. Spiral Coil
-            const spiralGroup = new THREE.Group();
-            spiralGroup.position.x = -w/2;
-            notebookGroup.add(spiralGroup);
-
-            const spiralHeight = h - 0.1;
-            const startY = spiralHeight / 2;
-            const spiralPath = new HelixCurve(0.085, spiralHeight, 25, startY); // Adjusted radius from 0.105 to 0.085 to match thinner notebook
-            
-            // TubeGeometry: path, tubularSegments, radius, radialSegments, closed
-            const spiralGeom = new THREE.TubeGeometry(spiralPath, 400, 0.010, 12, false); // Adjusted wire radius from 0.012 to 0.010 for proportionality
-            
-            // Premium metallic look
-            const spiralMat = new THREE.MeshStandardMaterial({ 
-              color: 0xe2e8f0,
-              roughness: 1.0,
-              metalness: 0.0
-            });
-
-            const spiralMesh = new THREE.Mesh(spiralGeom, spiralMat);
-            spiralMesh.castShadow = true;
-            spiralMesh.receiveShadow = true;
-            spiralGroup.add(spiralMesh);
-
-            notebookGroup.position.x = 0.05;
-
-            // Load and render stickers
             const textureLoader = new THREE.TextureLoader();
             textureLoader.setCrossOrigin('anonymous');
-            const frontStickerMeshes = [];
-            const backStickerMeshes = [];
 
-            function addStickersToCanvas(stickers, targetCanvasMesh, isBackCover = false) {
-              const targetArray = isBackCover ? backStickerMeshes : frontStickerMeshes;
-              stickers.forEach(sticker => {
-                let texture;
-                let topMat, sideMat, depthMaterial;
-                const meshes = [];
-                const scale = sticker.scale || 1;
-                const baseSize = (80 * canvasW / W_c) * scale;
+            // 5. Render Placed Tokens (as physical circular cylinders)
+            const tokenRadius = 0.12;
+            const tokenHeight = 0.018;
 
-                const onLoadCallback = () => {
-                  if (texture && texture.image) {
-                    const imgW = texture.image.width || 1;
-                    const imgH = texture.image.height || 1;
-                    const aspect = imgW / imgH;
-                    
-                    meshes.forEach(m => {
-                      if (aspect >= 1) {
-                        m.scale.set(baseSize, baseSize / aspect, 1);
-                      } else {
-                        m.scale.set(baseSize * aspect, baseSize, 1);
-                      }
-                    });
-                  }
-                  if (topMat) topMat.needsUpdate = true;
-                  if (sideMat) sideMat.needsUpdate = true;
-                  if (depthMaterial) depthMaterial.needsUpdate = true;
-                };
+            placedTokens.forEach(t => {
+              let iconTexture;
+              
+              const onLoadCallback = () => {
+                if (iconTexture) iconTexture.needsUpdate = true;
+              };
 
-                const onTextureError = (err) => {
-                  console.error('Error loading texture for sticker: ' + sticker.id, err);
-                };
+              if (t.imageBase64) {
+                iconTexture = textureLoader.load(t.imageBase64, onLoadCallback);
+              } else if (t.remoteUrl) {
+                iconTexture = textureLoader.load(t.remoteUrl, onLoadCallback);
+              } else if (t.icon) {
+                iconTexture = createEmojiTexture(t.icon);
+              }
 
-                if (sticker.imageBase64) {
-                  texture = textureLoader.load(sticker.imageBase64, onLoadCallback, undefined, onTextureError);
-                } else if (sticker.remoteUrl) {
-                  texture = textureLoader.load(sticker.remoteUrl, onLoadCallback, undefined, onTextureError);
-                } else if (sticker.icon) {
-                  texture = createEmojiTexture(sticker.icon);
-                  onLoadCallback();
-                }
-
-                if (texture) {
-                  const stickerGeom = new THREE.PlaneGeometry(1, 1);
-                  
-                  topMat = new THREE.MeshStandardMaterial({ 
-                    map: texture, 
-                    transparent: true,
-                    alphaTest: 0.5,
-                    side: THREE.DoubleSide,
-                    clippingPlanes: isBackCover ? backClippingPlanes : frontClippingPlanes,
-                    roughness: 1.0,
-                    metalness: 0.0
-                  });
-
-                  sideMat = new THREE.MeshStandardMaterial({ 
-                    map: texture, 
-                    transparent: true,
-                    alphaTest: 0.5,
-                    side: THREE.DoubleSide,
-                    clippingPlanes: isBackCover ? backClippingPlanes : frontClippingPlanes,
-                    roughness: 1.0,
-                    metalness: 0.0
-                  });
-                  sideMat.onBeforeCompile = (shader) => {
-                    shader.fragmentShader = shader.fragmentShader.replace(
-                      '#include <map_fragment>',
-                      \`
-                      #ifdef USE_MAP
-                        vec4 texelColor = texture2D( map, vUv );
-                        diffuseColor.a *= texelColor.a;
-                        diffuseColor.rgb = texelColor.rgb * 0.85;
-                      #endif
-                      \`
-                    );
-                  };
-
-                  depthMaterial = new THREE.MeshDepthMaterial({
-                    depthPacking: THREE.RGBADepthPacking,
-                    map: texture,
-                    alphaMap: texture,
-                    alphaTest: 0.5,
-                    transparent: true,
-                    side: THREE.DoubleSide,
-                    clippingPlanes: isBackCover ? backClippingPlanes : frontClippingPlanes
-                  });
-
-                  const normalizedX = (sticker.x + 50) / W_c;
-                  const normalizedY = (sticker.y + 50) / H_c;
-                  const threeX = (normalizedX - 0.5) * canvasW;
-                  const threeY = (0.5 - normalizedY) * canvasH;
-
-                  let zOffset = 0.012;
-                  const lvl = sticker.heightLevel;
-                  if (lvl === 'canvas') {
-                    zOffset = 0.001;
-                  } else if (lvl === 1 || lvl === '1') {
-                    zOffset = 0.004;
-                  } else if (lvl === 2 || lvl === '2') {
-                    zOffset = 0.008;
-                  } else if (lvl === 3 || lvl === '3') {
-                    zOffset = 0.012;
-                  } else if (lvl === 'frame') {
-                    zOffset = 0.012;
-                  }
-
-                  const numLayers = lvl === 'canvas' ? 1 : Math.ceil(zOffset / 0.0015);
-
-                  for (let i = 0; i < numLayers; i++) {
-                    const isTop = (i === numLayers - 1);
-                    const mesh = new THREE.Mesh(stickerGeom, isTop ? topMat : sideMat);
-                    
-                    mesh.scale.set(baseSize, baseSize, 1);
-                    
-                    let currentZ = 0.001;
-                    if (numLayers > 1) {
-                      currentZ = 0.001 + (i / (numLayers - 1)) * (zOffset - 0.001);
-                    }
-                    
-                    mesh.position.set(threeX, threeY, currentZ);
-                    mesh.rotation.z = -sticker.rotation * Math.PI / 180;
-                    mesh.castShadow = true;
-                    mesh.receiveShadow = true;
-                    mesh.customDepthMaterial = depthMaterial;
-                    
-                    targetCanvasMesh.add(mesh);
-                    meshes.push(mesh);
-                    targetArray.push(mesh);
-                  }
-                }
+              // Cilindro en 3D
+              const tokenGeom = new THREE.CylinderGeometry(tokenRadius, tokenRadius, tokenHeight, 32);
+              
+              // Cara superior (Icono)
+              const topMaterial = new THREE.MeshStandardMaterial({
+                map: iconTexture || null,
+                roughness: 0.4,
+                metalness: 0.1,
+                transparent: true,
+                alphaTest: 0.3
               });
-            }
 
-            addStickersToCanvas(frontStickers, frontCanvasMesh, false);
-            addStickersToCanvas(backStickers, backCanvasMesh, true);
+              // Lateral y base (Coincide con el color de base del tablero)
+              const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: parseInt(boardColor.replace('#', '0x')),
+                roughness: 0.6,
+                metalness: 0.1
+              });
 
-            // Hide loader once setup is done
+              const tokenMaterials = [
+                bodyMaterial,  // Lateral
+                topMaterial,   // Superior
+                bodyMaterial   // Inferior
+              ];
+
+              const tokenMesh = new THREE.Mesh(tokenGeom, tokenMaterials);
+              tokenMesh.rotation.x = Math.PI / 2;
+              tokenMesh.castShadow = true;
+              tokenMesh.receiveShadow = true;
+
+              // Calcular posición local del slot en 3D relative a las dimensiones del board
+              const stepX = boardW / 7;
+              const slotX = (t.column - 3) * stepX; // Centrado en X (-3 a +3)
+              
+              // Distribución en Y
+              const startY = boardH / 2 - 0.12;
+              const stepY = (boardH - 0.24) / rowCount;
+              const slotY = startY - t.row * stepY - stepY / 2;
+
+              tokenMesh.position.set(slotX, slotY, boardT / 2 + tokenHeight / 2 + 0.002);
+              boardMesh.add(tokenMesh);
+            });
+
+            // Ocultar cargador
             document.getElementById('loading').style.display = 'none';
 
-            // Resize Handler
             window.addEventListener('resize', () => {
               camera.aspect = window.innerWidth / window.innerHeight;
               camera.updateProjectionMatrix();
               renderer.setSize(window.innerWidth, window.innerHeight);
             });
 
-            // Animation Loop
+            // Animación
             let autoRotate = true;
-            container.addEventListener('pointerdown', () => {
-              autoRotate = false;
-            });
+            container.addEventListener('pointerdown', () => { autoRotate = false; });
 
             function animate() {
               requestAnimationFrame(animate);
               if (autoRotate) {
-                notebookGroup.rotation.y += 0.008;
+                boardMesh.rotation.y = Math.sin(Date.now() * 0.001) * 0.2;
               }
-
-              // Update light positions relative to the camera to ensure consistent viewport lighting
-              if (dirLight1 && camera) {
-                const offset = new THREE.Vector3(2, 2, 2);
-                offset.applyMatrix4(camera.matrixWorld);
-                dirLight1.position.copy(offset);
-              }
-
-              // Dynamic shadow casting toggle based on which cover faces the camera (preventing shadow bleeding)
-              if (notebookGroup && camera) {
-                const frontNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(notebookGroup.quaternion);
-                const toCamera = camera.position.clone().normalize();
-                const isFrontFacingCamera = frontNormal.dot(toCamera) > 0;
-
-                frontStickerMeshes.forEach(mesh => {
-                  mesh.castShadow = isFrontFacingCamera;
-                });
-                backStickerMeshes.forEach(mesh => {
-                  mesh.castShadow = !isFrontFacingCamera;
-                });
-              }
-
-              // Update clipping planes to follow the rotating canvas meshes
-              if (typeof frontCanvasMesh !== 'undefined' && typeof backCanvasMesh !== 'undefined') {
-                frontCanvasMesh.updateMatrixWorld(true);
-                backCanvasMesh.updateMatrixWorld(true);
-                for (let i = 0; i < 4; i++) {
-                  frontClippingPlanes[i].copy(localFrontPlanes[i]).applyMatrix4(frontCanvasMesh.matrixWorld);
-                  backClippingPlanes[i].copy(localBackPlanes[i]).applyMatrix4(backCanvasMesh.matrixWorld);
-                }
-              }
-
               controls.update();
               renderer.render(scene, camera);
             }
@@ -1182,7 +859,7 @@ const EditorScreen = ({ navigation }) => {
       setCustom3DVisible(true);
     } catch (error) {
       console.log("Error generating 3D preview:", error);
-      Alert.alert("Error", "No se pudo generar la vista 3D: " + (error instanceof Error ? error.message : String(error)));
+      Alert.alert("Error", "No se pudo generar la vista 3D.");
     } finally {
       setIsGenerating3D(false);
     }
@@ -1220,7 +897,7 @@ const EditorScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
             <View style={styles.centerHeader}>
-              <Text style={styles.title}>{currentSide === 'front' ? 'TAPA' : 'CONTRATAPA'}</Text>
+              <Text style={styles.title}>FAROTRACKER STUDIO</Text>
             </View>
             <View style={styles.rightHeader}>
               <TouchableOpacity onPress={handleSubirPedido}>
@@ -1230,105 +907,135 @@ const EditorScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.main}>
-            {/* Área del Cuaderno (Canvas) */}
-            <Animated.View style={[styles.canvasWrapper, { transform: [{ rotateY: flipStr }] }]}>
-              <View style={[styles.glowLayer, { width: CANVAS_SIZE + 12, height: CANVAS_SIZE * 1.3 + 12, borderRadius: 20, opacity: 0.45 }]} />
-              <View style={[styles.glowLayer, { width: CANVAS_SIZE + 28, height: CANVAS_SIZE * 1.3 + 28, borderRadius: 24, opacity: 0.25 }]} />
-              <View style={[styles.glowLayer, { width: CANVAS_SIZE + 48, height: CANVAS_SIZE * 1.3 + 48, borderRadius: 28, opacity: 0.10 }]} />
-
-              <View style={[styles.notebookBase, { backgroundColor: baseColor }]}>
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={[styles.notebookCanvas, { backgroundColor: canvasColor }]}
-                  onPress={() => setSelectedStickerId(null)}
-                >
-                  {stickers.map(sticker => (
-                    <StickerItem 
-                      key={sticker.id} 
-                      sticker={sticker} 
-                      isSelected={selectedStickerId === sticker.id}
-                      onSelect={() => setSelectedStickerId(sticker.id)}
-                    />
+            {/* Tablero organizador semanal 2D */}
+            <ViewShot ref={boardViewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }}>
+              <View style={[styles.trackerBoard, { backgroundColor: boardColor, borderColor: accentColor }]}>
+                {/* Cabecera de días */}
+                <View style={styles.boardHeaderRow}>
+                  {['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'].map((day, idx) => (
+                    <View key={idx} style={styles.boardHeaderCell}>
+                      <Text style={[styles.boardHeaderText, { color: textColor }]}>{day}</Text>
+                    </View>
                   ))}
-                  <View style={styles.gridOverlay} />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
+                </View>
 
-            {/* Controles de Configuración Rápidos */}
+                {/* Slots Circulares */}
+                <View style={styles.boardSlotsContainer}>
+                  {Array.from({ length: rowCount }).map((_, rIdx) => (
+                    <View key={rIdx} style={styles.boardRow}>
+                      {Array.from({ length: 7 }).map((_, cIdx) => (
+                        <View
+                          key={cIdx}
+                          style={[styles.boardSlotCircle, { borderColor: accentColor }]}
+                        />
+                      ))}
+                    </View>
+                  ))}
+                </View>
+
+                {/* Fichas colocadas */}
+                {placedTokens.map(token => (
+                  <StickerItem
+                    key={token.id}
+                    sticker={token}
+                    isSelected={selectedStickerId === token.id}
+                    onSelect={() => setSelectedStickerId(token.id)}
+                  />
+                ))}
+              </View>
+            </ViewShot>
+
             <View style={styles.controls}>
+              {/* Controles de Filas (+ y -) */}
+              <View style={styles.rowControls}>
+                <Text style={styles.rowControlsLabel}>FILAS: {rowCount}</Text>
+                <View style={styles.rowButtonsRow}>
+                  <TouchableOpacity
+                    style={styles.rowBtn}
+                    onPress={() => setRowCount(rowCount - 1)}
+                    disabled={rowCount <= 1}
+                  >
+                    <Text style={styles.rowBtnText}>-</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.rowBtn}
+                    onPress={() => setRowCount(rowCount + 1)}
+                    disabled={rowCount >= 6}
+                  >
+                    <Text style={styles.rowBtnText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Controles Cromáticos */}
               <View style={styles.quickSelectorsRow}>
-                {/* Selector de Color de Marco */}
-                <TouchableOpacity 
-                  style={styles.quickSelectorItem} 
+                <TouchableOpacity
+                  style={styles.quickSelectorItem}
                   onPress={() => {
-                    setColorPickerTitle('COLOR DE MARCO');
+                    setColorPickerTitle('COLOR DE TABLERO (BASE)');
                     setColorPickerTarget('base');
                     setColorPickerVisible(true);
                   }}
                 >
-                  <Text style={styles.quickSelectorLabel}>MARCO</Text>
-                  <View style={[styles.quickColorCircle, { backgroundColor: baseColor }]} />
+                  <Text style={styles.quickSelectorLabel}>BASE</Text>
+                  <View style={[styles.quickColorCircle, { backgroundColor: boardColor }]} />
                 </TouchableOpacity>
 
-                {/* Selector de Color de Lienzo */}
-                <TouchableOpacity 
-                  style={styles.quickSelectorItem} 
+                <TouchableOpacity
+                  style={styles.quickSelectorItem}
                   onPress={() => {
-                    setColorPickerTitle('COLOR DE LIENZO');
-                    setColorPickerTarget('canvas');
+                    setColorPickerTitle('COLOR DE RANURAS (ACENTO)');
+                    setColorPickerTarget('accent');
                     setColorPickerVisible(true);
                   }}
                 >
-                  <Text style={styles.quickSelectorLabel}>LIENZO</Text>
-                  <View style={[styles.quickColorCircle, { backgroundColor: canvasColor }]} />
+                  <Text style={styles.quickSelectorLabel}>ACENTO</Text>
+                  <View style={[styles.quickColorCircle, { backgroundColor: accentColor }]} />
                 </TouchableOpacity>
 
-                {/* Borrar Stickers (Red Cross) */}
-                <TouchableOpacity 
-                  style={styles.quickSelectorItem} 
-                  onPress={resetDesign}
+                <TouchableOpacity
+                  style={styles.quickSelectorItem}
+                  onPress={() => {
+                    setColorPickerTitle('COLOR DE TEXTO');
+                    setColorPickerTarget('text');
+                    setColorPickerVisible(true);
+                  }}
                 >
-                  <Text style={[styles.quickSelectorLabel, { color: '#FF3B30' }]}>LIMPIAR</Text>
-                  <View style={styles.deleteCrossCircle}>
-                    <Text style={styles.deleteCrossText}>✕</Text>
-                  </View>
+                  <Text style={styles.quickSelectorLabel}>TEXTO</Text>
+                  <View style={[styles.quickColorCircle, { backgroundColor: textColor }]} />
                 </TouchableOpacity>
               </View>
 
-              {selectedSticker && (
+              {/* Ficha seleccionada: Acción borrar del tablero */}
+              {selectedToken && (
                 <View style={styles.stickerControlPanel}>
-                  <Text style={styles.stickerControlTitle}>STICKER SELECCIONADO</Text>
-                  
-
-
+                  <Text style={styles.stickerControlTitle}>FICHA COLOCADA SELECCIONADA</Text>
                   <View style={styles.stickerActionRow}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={[styles.stickerActionBtn, styles.deleteStickerBtn, { flex: 1 }]}
                       onPress={() => {
-                        removeSticker(selectedSticker.id);
+                        removePlacedToken(selectedToken.id);
                         setSelectedStickerId(null);
+                        showToast("Ficha quitada del tablero");
                       }}
                     >
-                      <Text style={[styles.stickerActionText, styles.deleteStickerText]}>🗑️ BORRAR</Text>
+                      <Text style={[styles.stickerActionText, styles.deleteStickerText]}>🗑️ QUITAR DEL TABLERO</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               )}
 
-              {/* Botones de Acción Principales */}
+              {/* Botón Acción Principal: Abrir Galería o ver 3D */}
               <View style={styles.mainActionsRow}>
-                {/* Añadir Sticker */}
-                <TouchableOpacity 
-                  style={styles.actionCircleBtn} 
+                <TouchableOpacity
+                  style={styles.actionCircleBtn}
                   onPress={() => setPickerVisible(true)}
                 >
                   <Text style={styles.actionBtnIcon}>+</Text>
                 </TouchableOpacity>
 
-                {/* Ver en 3D */}
-                <TouchableOpacity 
-                  style={styles.actionTextBtn} 
+                <TouchableOpacity
+                  style={styles.actionTextBtn}
                   onPress={handleOpen3DPreview}
                 >
                   <Text style={styles.actionBtnText}>
@@ -1336,14 +1043,66 @@ const EditorScreen = ({ navigation }) => {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Cambiar de Lado (Tapa / Contratapa) */}
-                <TouchableOpacity 
-                  style={styles.actionCircleBtn} 
-                  onPress={handleToggleSide}
+                <TouchableOpacity
+                  style={styles.actionCircleBtn}
+                  onPress={resetDesign}
                 >
-                  <Text style={[styles.actionBtnIcon, { fontSize: 20 }]}>🔄</Text>
+                  <Text style={[styles.actionBtnIcon, { fontSize: 20, color: '#FF3B30' }]}>✕</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+
+            {/* Listado de Fichas en tu Pack (Inventario) */}
+            <View style={styles.packInventoryContainer}>
+              <Text style={styles.packInventoryTitle}>FICHAS EN TU PACK FÍSICO ({tokenPack.reduce((acc, t) => acc + t.quantity, 0)}):</Text>
+              {tokenPack.length === 0 ? (
+                <View style={styles.emptyPackPlaceholder}>
+                  <Text style={styles.emptyPackText}>El set de fichas está vacío. Toca "+" para agregar.</Text>
+                </View>
+              ) : (
+                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.packScroll}>
+                  {tokenPack.map(item => {
+                    const found = STICKERS.find(s => s.id === item.iconId);
+                    const imageSource = found ? found.image : null;
+                    const iconSource = found ? found.icon : null;
+                    const placedCount = placedTokens.filter(t => t.iconId === item.iconId).length;
+
+                    return (
+                      <View key={item.iconId} style={styles.inventoryItemCard}>
+                        <TouchableOpacity
+                          style={styles.inventorySpawnButton}
+                          onPress={() => handleSpawnTokenOnGrid(item.iconId)}
+                        >
+                          <View style={[styles.inventoryCircleIcon, { backgroundColor: boardColor, borderColor: accentColor }]}>
+                            {imageSource ? (
+                              <Image source={imageSource} style={styles.inventoryImage} resizeMode="contain" />
+                            ) : (
+                              <Text style={styles.inventoryText}>{iconSource}</Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+
+                        <Text style={styles.inventoryPlacedQty}>{placedCount} / {item.quantity}</Text>
+
+                        <View style={styles.inventoryQuantityControls}>
+                          <TouchableOpacity
+                            style={styles.qtyBtn}
+                            onPress={() => updateTokenPackQuantity(item.iconId, -1)}
+                          >
+                            <Text style={styles.qtyBtnText}>-</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.qtyBtn}
+                            onPress={() => updateTokenPackQuantity(item.iconId, 1)}
+                          >
+                            <Text style={styles.qtyBtnText}>+</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              )}
             </View>
           </View>
         </View>
@@ -1353,64 +1112,58 @@ const EditorScreen = ({ navigation }) => {
           <View style={styles.header}>
             <View style={styles.leftHeader}>
               <TouchableOpacity onPress={() => scrollToPage(0)}>
-                <Text style={styles.backButton}>← EDITAR</Text>
+                <Text style={styles.backButton}>← TABLERO</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.centerHeader}>
               <Text style={styles.title}>PREPARACIÓN</Text>
             </View>
             <View style={styles.rightHeader}>
-              <TouchableOpacity onPress={() => console.log('Compartir presionado')}>
-                <Text style={styles.shareText}>COMPARTIR</Text>
-              </TouchableOpacity>
+              <View style={{ width: 60 }} />
             </View>
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            {/* Vista Previa */}
+            {/* Vista Previa del Tablero */}
             <View style={styles.previewContainer}>
               <View style={styles.previewRow}>
-                {/* TAPA */}
-                <View style={styles.notebookContainer}>
-                  <View style={{ width: MINI_NOTEBOOK_WIDTH, height: MINI_NOTEBOOK_HEIGHT, justifyContent: 'center', alignItems: 'center' }}>
-                    <View style={[styles.glowLayer, { width: MINI_NOTEBOOK_WIDTH + 8, height: MINI_NOTEBOOK_HEIGHT + 8, borderRadius: 12, opacity: 0.45 }]} />
-                    <View style={[styles.glowLayer, { width: MINI_NOTEBOOK_WIDTH + 18, height: MINI_NOTEBOOK_HEIGHT + 18, borderRadius: 14, opacity: 0.25 }]} />
-                    <View style={[styles.glowLayer, { width: MINI_NOTEBOOK_WIDTH + 30, height: MINI_NOTEBOOK_HEIGHT + 30, borderRadius: 16, opacity: 0.10 }]} />
-
-                    <ViewShot ref={frontViewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }}>
-                      <View style={[styles.miniNotebook, { backgroundColor: frontBaseColor }]}>
-                        <View style={[styles.miniCanvas, { backgroundColor: frontCanvasColor }]}>
-                          {frontStickers.map(sticker => (
-                            <MiniSticker key={sticker.id} sticker={sticker} />
-                          ))}
-                        </View>
+                <View style={[styles.miniBoard, { backgroundColor: boardColor, borderColor: accentColor, height: MINI_HEADER_HEIGHT + rowCount * MINI_ROW_HEIGHT + 10 }]}>
+                  {/* Min header */}
+                  <View style={{ flexDirection: 'row', height: MINI_HEADER_HEIGHT, alignItems: 'center' }}>
+                    {['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'].map((day, idx) => (
+                      <View key={idx} style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: textColor }}>{day}</Text>
                       </View>
-                    </ViewShot>
+                    ))}
                   </View>
-                  <Text style={styles.previewSublabel}>TAPA</Text>
-                </View>
-
-                {/* CONTRATAPA */}
-                <View style={styles.notebookContainer}>
-                  <View style={{ width: MINI_NOTEBOOK_WIDTH, height: MINI_NOTEBOOK_HEIGHT, justifyContent: 'center', alignItems: 'center' }}>
-                    <View style={[styles.glowLayer, { width: MINI_NOTEBOOK_WIDTH + 8, height: MINI_NOTEBOOK_HEIGHT + 8, borderRadius: 12, opacity: 0.45 }]} />
-                    <View style={[styles.glowLayer, { width: MINI_NOTEBOOK_WIDTH + 18, height: MINI_NOTEBOOK_HEIGHT + 18, borderRadius: 14, opacity: 0.25 }]} />
-                    <View style={[styles.glowLayer, { width: MINI_NOTEBOOK_WIDTH + 30, height: MINI_NOTEBOOK_HEIGHT + 30, borderRadius: 16, opacity: 0.10 }]} />
-
-                    <ViewShot ref={backViewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }}>
-                      <View style={[styles.miniNotebook, { backgroundColor: backBaseColor }]}>
-                        <View style={[styles.miniCanvas, { backgroundColor: backCanvasColor }]}>
-                          {backStickers.map(sticker => (
-                            <MiniSticker key={sticker.id} sticker={sticker} />
-                          ))}
-                        </View>
-                      </View>
-                    </ViewShot>
-                  </View>
-                  <Text style={styles.previewSublabel}>CONTRATAPA</Text>
+                  {/* Mini slots */}
+                  {Array.from({ length: rowCount }).map((_, rIdx) => (
+                    <View key={rIdx} style={{ flexDirection: 'row', height: MINI_ROW_HEIGHT, alignItems: 'center' }}>
+                      {Array.from({ length: 7 }).map((_, cIdx) => (
+                        <View
+                          key={cIdx}
+                          style={{
+                            flex: 1,
+                            height: MINI_TOKEN_RADIUS * 2,
+                            maxHeight: MINI_TOKEN_RADIUS * 2,
+                            margin: 1,
+                            borderRadius: MINI_TOKEN_RADIUS,
+                            borderWidth: 0.8,
+                            borderStyle: 'dashed',
+                            borderColor: accentColor,
+                            alignSelf: 'center',
+                          }}
+                        />
+                      ))}
+                    </View>
+                  ))}
+                  {/* Mini tokens */}
+                  {placedTokens.map(token => (
+                    <MiniToken key={token.id} token={token} />
+                  ))}
                 </View>
               </View>
-              <Text style={styles.previewLabel}>VISTA PREVIA DEL DISEÑO</Text>
+              <Text style={styles.previewLabel}>TABLERO ORGANIZADOR DE HELADERA</Text>
             </View>
 
             {/* Código Postal */}
@@ -1427,12 +1180,16 @@ const EditorScreen = ({ navigation }) => {
               />
             </View>
 
-            {/* Resumen de Costos */}
+            {/* Resumen del pedido */}
             <View style={styles.costSummaryContainer}>
-              <Text style={styles.costSummaryTitle}>RESUMEN DE COMPRA</Text>
+              <Text style={styles.costSummaryTitle}>RESUMEN DEL TRACKER</Text>
               <View style={styles.costRow}>
-                <Text style={styles.costLabel}>Cuaderno Faro3D:</Text>
+                <Text style={styles.costLabel}>Base del Tablero ({rowCount} filas):</Text>
                 <Text style={styles.costValue}>{ORDER_COST_DISPLAY}</Text>
+              </View>
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Total de Fichas Magnéticas:</Text>
+                <Text style={styles.costValue}>x{tokenPack.reduce((acc, t) => acc + t.quantity, 0)}</Text>
               </View>
               <View style={styles.costRow}>
                 <Text style={styles.costLabel}>Envío (Correo Argentino):</Text>
@@ -1447,7 +1204,7 @@ const EditorScreen = ({ navigation }) => {
               <View style={[styles.costRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>TOTAL:</Text>
                 <Text style={styles.totalValue}>
-                  {shippingCost !== null ? formatCurrency(31500 + shippingCost) : ORDER_COST_DISPLAY}
+                  {shippingCost !== null ? formatCurrency(27800 + shippingCost) : ORDER_COST_DISPLAY}
                 </Text>
               </View>
             </View>
@@ -1478,7 +1235,6 @@ const EditorScreen = ({ navigation }) => {
           </View>
 
           <ScrollView contentContainerStyle={styles.content}>
-            {/* Card 1: ID de Pedido */}
             <View style={styles.card}>
               <Text style={styles.cardLabel}>ID DEL PEDIDO</Text>
               <Text selectable={true} style={[styles.cardValue, styles.orderIdText]}>
@@ -1486,15 +1242,13 @@ const EditorScreen = ({ navigation }) => {
               </Text>
             </View>
 
-            {/* Card 2: Costo */}
             <View style={styles.card}>
               <Text style={styles.cardLabel}>MONTO A PAGAR</Text>
               <Text style={[styles.cardValue, { marginBottom: 0 }]}>
-                {shippingCost !== null ? formatCurrency(31500 + shippingCost) : ORDER_COST_DISPLAY}
+                {shippingCost !== null ? formatCurrency(27800 + shippingCost) : ORDER_COST_DISPLAY}
               </Text>
             </View>
 
-            {/* Card 3: Mercado Pago (Alias) */}
             <View style={styles.card}>
               <Text style={styles.cardLabel}>ALIAS DE TRANSFERENCIA</Text>
               <Text style={[styles.cardValue, { marginBottom: 8 }]}>{alias}</Text>
@@ -1510,7 +1264,6 @@ const EditorScreen = ({ navigation }) => {
               </View>
             </View>
 
-            {/* Botón de Confirmación */}
             <TouchableOpacity
               style={[styles.confirmButton, isProcessingPayment && { opacity: 0.7, backgroundColor: '#555555' }]}
               onPress={handlePaymentConfirmation}
@@ -1532,7 +1285,6 @@ const EditorScreen = ({ navigation }) => {
         onSelect={handleSelectSticker}
       />
 
-      {/* Tooltip Toast Flotante Animado */}
       {toastMessage ? (
         <Animated.View style={[styles.toastContainer, { opacity: toastOpacity }]}>
           <Text style={styles.toastText}>{toastMessage}</Text>
@@ -1554,7 +1306,7 @@ const EditorScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
             <View style={styles.centerHeader}>
-              <Text style={styles.title}>DISEÑO 3D INTERACTIVO</Text>
+              <Text style={styles.title}>VISTA 3D EN HELADERA</Text>
             </View>
             <View style={{ flex: 1 }} />
           </View>
@@ -1605,8 +1357,8 @@ const EditorScreen = ({ navigation }) => {
           <View style={styles.colorModalContent}>
             <Text style={styles.colorModalTitle}>{colorPickerTitle}</Text>
             <View style={styles.colorPaletteGrid}>
-              {colors.map((color) => {
-                const isSelected = (colorPickerTarget === 'base' ? baseColor : canvasColor) === color;
+              {(colorPickerTarget === 'base' ? colors.base : colorPickerTarget === 'accent' ? colors.accent : colors.text).map((color) => {
+                const isSelected = (colorPickerTarget === 'base' ? boardColor : colorPickerTarget === 'accent' ? accentColor : textColor) === color;
                 return (
                   <TouchableOpacity
                     key={color}
@@ -1617,9 +1369,11 @@ const EditorScreen = ({ navigation }) => {
                     ]}
                     onPress={() => {
                       if (colorPickerTarget === 'base') {
-                        setBaseColor(color);
+                        setBoardColor(color);
+                      } else if (colorPickerTarget === 'accent') {
+                        setAccentColor(color);
                       } else {
-                        setCanvasColor(color);
+                        setTextColor(color);
                       }
                       setColorPickerVisible(false);
                     }}
@@ -1700,430 +1454,374 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(0, 224, 255, 0.2)',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     backgroundColor: '#000000',
-  },
-  leftHeader: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
-  centerHeader: {
-    flex: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rightHeader: {
-    flex: 1.5,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(0, 224, 255, 0.15)',
   },
   backButton: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 224, 255, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
-  },
-  sideToggle: {
-    fontSize: 10,
-    fontWeight: '800',
     color: '#00E0FF',
-    letterSpacing: 1,
-    textShadowColor: 'rgba(0, 224, 255, 0.4)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 4,
+    fontSize: 16,
+    fontWeight: '900',
   },
   title: {
-    fontSize: 12,
+    color: '#FFFFFF',
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 2,
-    color: '#FFFFFF',
     textShadowColor: 'rgba(0, 224, 255, 0.8)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
   reviewButton: {
-    fontSize: 12,
-    fontWeight: '800',
     color: '#00E0FF',
+    fontSize: 11,
+    fontWeight: '900',
     letterSpacing: 1,
-    textAlign: 'right',
     textShadowColor: 'rgba(0, 224, 255, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
-  },
-  main: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-  },
-  canvasWrapper: {
-    width: CANVAS_SIZE + 40,
-    height: CANVAS_SIZE * 1.3, // Proporción A5 aprox, compactada
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notebookBase: {
-    width: CANVAS_SIZE,
-    height: CANVAS_SIZE * 1.3,
-    borderRadius: 15,
-    padding: 10,
-    elevation: 10,
-    shadowColor: '#00E0FF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.95,
-    shadowRadius: 25,
-  },
-  notebookCanvas: {
-    flex: 1,
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  gridOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.1,
-    borderWidth: 1,
-    borderColor: '#00E0FF',
-  },
-  controls: {
-    width: '100%',
-    paddingHorizontal: 20,
-  },
-  controlGroup: {
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 2,
-    color: '#00E0FF',
-    marginBottom: 10,
-    textShadowColor: 'rgba(0, 224, 255, 0.4)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 4,
   },
-  colorRow: {
-    paddingRight: 20,
+  main: {
+    flex: 1,
+    padding: 15,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  colorCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    marginRight: 12,
+  trackerBoard: {
+    width: BOARD_WIDTH,
+    borderRadius: 16,
+    borderWidth: 2.5,
+    padding: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  boardHeaderRow: {
+    flexDirection: 'row',
+    height: HEADER_HEIGHT,
+    alignItems: 'center',
+  },
+  boardHeaderCell: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  boardHeaderText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  boardSlotsContainer: {
+    marginTop: 5,
+  },
+  boardRow: {
+    flexDirection: 'row',
+    height: ROW_HEIGHT,
+    alignItems: 'center',
+  },
+  boardSlotCircle: {
+    flex: 1,
+    height: TOKEN_RADIUS * 2,
+    maxHeight: TOKEN_RADIUS * 2,
+    margin: 2,
+    borderRadius: TOKEN_RADIUS,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderStyle: 'dashed',
+    alignSelf: 'center',
   },
-  selectedColor: {
-    borderWidth: 3,
-    borderColor: '#00E0FF',
+  rowControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(20, 22, 28, 0.6)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 224, 255, 0.15)',
+    width: '100%',
   },
-  nextButton: {
+  rowControlsLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 1.5,
+  },
+  rowButtonsRow: {
+    flexDirection: 'row',
+  },
+  rowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: '#151515',
+    borderWidth: 1,
+    borderColor: '#333333',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  rowBtnText: {
+    color: '#00E0FF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  controls: {
+    width: '100%',
     marginTop: 10,
   },
-  editorButton: {
-    paddingVertical: 12,
-    marginVertical: 4,
-  },
-  resetButtonContainer: {
-    marginTop: 8,
-    alignItems: 'center',
+  packInventoryContainer: {
+    width: '100%',
+    backgroundColor: '#111216',
+    borderWidth: 1,
+    borderColor: '#222530',
+    borderRadius: 12,
     padding: 10,
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: '#FF3B30',
-    borderRadius: 4,
+    marginTop: 12,
   },
-  resetButtonText: {
-    color: '#FF3B30',
-    fontWeight: '800',
-    fontSize: 12,
-    letterSpacing: 1,
+  packInventoryTitle: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#8C7D70',
+    letterSpacing: 1.5,
+    marginBottom: 8,
   },
-  versionText: {
+  emptyPackPlaceholder: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  emptyPackText: {
+    color: '#555555',
+    fontSize: 11,
     textAlign: 'center',
-    marginTop: 6,
-    fontSize: 10,
-    color: '#666666',
   },
-
-  // Page 1 Styles (Review)
+  packScroll: {
+    flexDirection: 'row',
+  },
+  inventoryItemCard: {
+    width: 75,
+    backgroundColor: '#1C1E24',
+    borderRadius: 8,
+    padding: 6,
+    alignItems: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#2C2F3A',
+  },
+  inventorySpawnButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inventoryCircleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inventoryImage: {
+    width: 20,
+    height: 20,
+  },
+  inventoryText: {
+    fontSize: 18,
+  },
+  inventoryPlacedQty: {
+    fontSize: 10,
+    color: '#00E0FF',
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  inventoryQuantityControls: {
+    flexDirection: 'row',
+    marginTop: 6,
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  qtyBtn: {
+    flex: 0.45,
+    height: 20,
+    backgroundColor: '#262933',
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qtyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  miniBoard: {
+    width: MINI_BOARD_WIDTH,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    padding: 5,
+    position: 'relative',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  // Reused old styles for compatibility
   scrollContent: {
-    padding: 20,
+    padding: 15,
+  },
+  content: {
+    padding: 15,
   },
   previewContainer: {
     alignItems: 'center',
-    marginBottom: 40,
-    backgroundColor: '#000000',
-    padding: 10,
+    marginBottom: 20,
+    backgroundColor: 'rgba(20, 22, 28, 0.4)',
+    borderRadius: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#222530',
   },
   previewRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  notebookContainer: {
-    alignItems: 'center',
-    marginHorizontal: 15,
-  },
-  miniNotebook: {
-    width: MINI_NOTEBOOK_WIDTH,
-    height: MINI_NOTEBOOK_HEIGHT,
-    borderRadius: 8,
-    padding: MINI_PADDING,
-    elevation: 5,
-    shadowColor: '#00E0FF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 15,
-  },
-  miniCanvas: {
-    flex: 1,
-    borderRadius: 2,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  previewSublabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    marginTop: 8,
-    color: '#FFFFFF',
-    letterSpacing: 1,
-    textShadowColor: 'rgba(0, 224, 255, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
+    marginBottom: 10,
   },
   previewLabel: {
-    fontSize: 10,
-    color: '#A0A0A0',
-    marginTop: 15,
-    letterSpacing: 1,
-  },
-  section: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 2,
-    color: '#FFFFFF',
-    marginBottom: 15,
-    borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(0, 224, 255, 0.2)',
-    paddingBottom: 5,
-    textShadowColor: 'rgba(0, 224, 255, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
-  },
-  specRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  specLabel: {
-    fontSize: 13,
-    color: '#A0A0A0',
-    width: 120,
-  },
-  colorChip: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  stickerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  stickerThumb: {
-    width: 50,
-    height: 50,
-    backgroundColor: '#121212',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 224, 255, 0.2)',
-  },
-  stickerImage: {
-    width: 30,
-    height: 30,
-  },
-  stickerIcon: {
-    fontSize: 24,
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1.5,
-    borderTopColor: 'rgba(0, 224, 255, 0.2)',
-  },
-  shareText: {
+    color: '#8C7D70',
     fontSize: 10,
     fontWeight: '800',
-    color: '#00E0FF',
-    textAlign: 'right',
-    textShadowColor: 'rgba(0, 224, 255, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
+    letterSpacing: 2,
+    marginTop: 5,
   },
   postalCodeContainer: {
-    marginTop: 20,
-    width: '100%',
-    paddingHorizontal: 15,
+    backgroundColor: '#14161C',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#222530',
   },
   postalCodeLabel: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 9,
+    fontWeight: '900',
     color: '#00E0FF',
     letterSpacing: 2,
-    marginBottom: 10,
-    textShadowColor: 'rgba(0, 224, 255, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
+    marginBottom: 8,
   },
   postalCodeInput: {
-    backgroundColor: '#121212',
-    borderColor: 'rgba(0, 224, 255, 0.3)',
-    borderWidth: 1.5,
-    borderRadius: 8,
+    height: 45,
+    backgroundColor: '#090A0D',
+    borderRadius: 6,
+    paddingHorizontal: 12,
     color: '#FFFFFF',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: 'bold',
+    borderWidth: 1.5,
+    borderColor: '#222530',
   },
   costSummaryContainer: {
-    marginTop: 25,
-    backgroundColor: 'rgba(20, 22, 28, 0.4)',
-    borderRadius: 8,
+    backgroundColor: '#14161C',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 20,
     borderWidth: 1.5,
-    borderColor: 'rgba(0, 224, 255, 0.2)',
-    padding: 16,
-    width: '100%',
+    borderColor: 'rgba(0, 224, 255, 0.15)',
   },
   costSummaryTitle: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#00E0FF',
+    color: '#FFFFFF',
     letterSpacing: 2,
-    marginBottom: 15,
-    textShadowColor: 'rgba(0, 224, 255, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#222530',
+    paddingBottom: 6,
   },
   costRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    paddingVertical: 6,
   },
   costLabel: {
+    color: '#888888',
     fontSize: 12,
-    color: '#A0A0A0',
   },
   costValue: {
-    fontSize: 13,
-    fontWeight: '700',
     color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   totalRow: {
-    borderTopWidth: 1,
+    marginTop: 10,
+    borderTopWidth: 1.5,
     borderTopColor: 'rgba(0, 224, 255, 0.2)',
-    paddingTop: 12,
-    marginTop: 5,
+    paddingTop: 10,
   },
   totalLabel: {
-    fontSize: 13,
+    color: '#00E0FF',
+    fontSize: 14,
     fontWeight: '900',
-    color: '#FFFFFF',
     letterSpacing: 1,
   },
   totalValue: {
-    fontSize: 16,
-    fontWeight: '900',
     color: '#00E0FF',
-    textShadowColor: 'rgba(0, 224, 255, 0.6)',
+    fontSize: 15,
+    fontWeight: '900',
+    textShadowColor: 'rgba(0, 224, 255, 0.5)',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
+    textShadowRadius: 6,
   },
-
-  // Page 2 Styles (Checkout)
-  content: {
-    padding: 20,
-    alignItems: 'center',
-    width: '100%',
+  footer: {
+    padding: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#222530',
+    backgroundColor: '#000000',
   },
   card: {
-    backgroundColor: 'rgba(20, 22, 28, 0.6)',
-    borderRadius: 8,
-    padding: 20,
-    width: '100%',
-    marginBottom: 20,
-    borderWidth: 1.5,
-    borderColor: '#00E0FF',
-    shadowColor: '#00E0FF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 3,
+    backgroundColor: '#14161C',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#222530',
   },
   cardLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#A0A0A0',
-    letterSpacing: 1.5,
-    marginBottom: 10,
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#8C7D70',
+    letterSpacing: 2,
+    marginBottom: 6,
   },
   cardValue: {
-    fontSize: 22,
-    fontWeight: '900',
     color: '#FFFFFF',
-    marginBottom: 20,
-    textShadowColor: 'rgba(0, 224, 255, 0.8)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   orderIdText: {
-    fontSize: 14,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 13,
     color: '#00E0FF',
-    backgroundColor: '#121212',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 224, 255, 0.3)',
-    overflow: 'hidden',
-    marginBottom: 0,
-    textShadowColor: 'rgba(0, 224, 255, 0.4)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 4,
+    letterSpacing: 0.5,
   },
   holderText: {
-    fontSize: 13,
-    color: '#A0A0A0',
-    fontWeight: '600',
-    marginBottom: 20,
+    color: '#888888',
+    fontSize: 11,
+    marginBottom: 12,
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
   },
   actionButton: {
     flex: 0.48,
-    paddingVertical: 14,
-    borderRadius: 4,
-    alignItems: 'center',
+    height: 42,
+    borderRadius: 8,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   copyButton: {
     backgroundColor: 'transparent',
@@ -2132,75 +1830,54 @@ const styles = StyleSheet.create({
   },
   copyButtonText: {
     color: '#FFFFFF',
-    fontWeight: '800',
     fontSize: 11,
-    letterSpacing: 0.5,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
   mpButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: '#00E0FF',
+    backgroundColor: '#009EE3',
   },
   mpButtonText: {
-    color: '#00E0FF',
-    fontWeight: '800',
+    color: '#FFFFFF',
     fontSize: 11,
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 224, 255, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
   confirmButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderWidth: 2,
-    borderColor: '#00E0FF',
-    paddingVertical: 18,
-    borderRadius: 4,
+    backgroundColor: '#00E0FF',
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
-    marginTop: 10,
-    marginBottom: 30,
+    marginTop: 20,
     shadowColor: '#00E0FF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 10,
-    elevation: 3,
+    elevation: 4,
   },
   confirmButtonText: {
-    color: '#FFFFFF',
+    fontSize: 13,
+    color: '#000000',
     fontWeight: '900',
     letterSpacing: 2,
-    fontSize: 13,
-    textShadowColor: 'rgba(0, 224, 255, 0.8)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
   },
-  closeButton: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-    textShadowColor: 'rgba(0, 224, 255, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
-  },
-
-  // Toast Styles
   toastContainer: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 90,
     alignSelf: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 25,
-    borderWidth: 1,
+    backgroundColor: '#111216',
+    borderWidth: 1.5,
     borderColor: '#00E0FF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
     shadowColor: '#00E0FF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 10,
     elevation: 6,
+    zIndex: 1000,
   },
   toastText: {
     color: '#FFFFFF',
@@ -2208,9 +1885,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
-    textShadowColor: 'rgba(0, 224, 255, 0.8)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
   },
   glowLayer: {
     position: 'absolute',
@@ -2235,45 +1909,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 8,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 224, 255, 0.8)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
-  },
-  heightRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  heightButton: {
-    flex: 1,
-    backgroundColor: '#151515',
-    borderWidth: 1,
-    borderColor: '#333333',
-    paddingVertical: 8,
-    marginHorizontal: 3,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  selectedHeightButton: {
-    borderColor: '#00E0FF',
-    backgroundColor: 'rgba(0, 224, 255, 0.15)',
-    shadowColor: '#00E0FF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 4,
-  },
-  heightButtonText: {
-    color: '#888888',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  selectedHeightButtonText: {
-    color: '#00E0FF',
-    fontWeight: '900',
-    textShadowColor: 'rgba(0, 224, 255, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 4,
   },
   stickerActionRow: {
     flexDirection: 'row',
@@ -2325,9 +1960,6 @@ const styles = StyleSheet.create({
     color: '#00E0FF',
     letterSpacing: 1.5,
     marginBottom: 6,
-    textShadowColor: 'rgba(0, 224, 255, 0.3)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 3,
   },
   quickColorCircle: {
     width: 32,
@@ -2335,32 +1967,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  deleteCrossCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 59, 48, 0.15)',
-    borderWidth: 1.5,
-    borderColor: '#FF3B30',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  deleteCrossText: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#FF3B30',
-    textAlign: 'center',
   },
   mainActionsRow: {
     flexDirection: 'row',
@@ -2438,9 +2044,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 2,
     marginBottom: 24,
-    textShadowColor: 'rgba(0, 224, 255, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
   },
   colorPaletteGrid: {
     flexDirection: 'row',
@@ -2587,6 +2190,28 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FF3B30',
     letterSpacing: 1.5,
+  },
+  // Custom styles for FaroTracker
+  canvasWrapper: {
+    width: BOARD_WIDTH,
+    borderRadius: 16,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rowButtonsRow: {
+    flexDirection: 'row',
+  },
+  miniNotebook: {
+    width: MINI_BOARD_WIDTH,
+    borderRadius: 8,
+    padding: MINI_PADDING_X,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  miniCanvas: {
+    width: MINI_CANVAS_WIDTH,
+    height: MINI_CANVAS_WIDTH * 1.3,
   },
 });
 

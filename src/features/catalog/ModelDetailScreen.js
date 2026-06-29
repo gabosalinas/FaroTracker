@@ -2,19 +2,46 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Image, ScrollView, Dimensions, StatusBar, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import * as FileSystem from 'expo-file-system';
-import { Asset } from 'expo-asset';
+import { STICKERS } from '../editor/StickerPicker';
 
 const { width } = Dimensions.get('window');
 
 const ModelDetailScreen = ({ route, navigation }) => {
-  const { model } = route.params || { model: { id: '1', name: 'Fórmula 1', image: require('../../../assets/catalog/Formula1/Formula1.jpg'), tagline: 'EDICIÓN ESPECIAL RACING' } };
+  const { model } = route.params || { model: { id: '1', name: 'Rutina Kids', image: require('../../../assets/catalog/Formula1/Formula1.jpg'), tagline: 'EDICIÓN ORGANIZADOR DIARIO' } };
   
   const [activeTab, setActiveTab] = useState('photos'); // 'photos' or '3d'
   const [viewerHtml, setViewerHtml] = useState(null);
   const [isLoading3D, setIsLoading3D] = useState(false);
+
+  // Colores y fichas pre-configuradas para cada modelo del catálogo
+  const boardPresets = model.id === '1' 
+    ? {
+        boardColor: '#004F7C',
+        accentColor: '#0A2B44',
+        textColor: '#FFFFFF',
+        rowCount: 4,
+        tokens: [
+          { id: '1', iconId: 's2', column: 0, row: 0, icon: '🐰' },
+          { id: '2', iconId: 's5', column: 1, row: 1, icon: '🐼' },
+          { id: '3', iconId: 's12', column: 2, row: 2, icon: '4' },
+          { id: '4', iconId: 's43', column: 4, row: 0, icon: '.' }
+        ],
+        description: 'El tablero de rutina ideal para los más pequeños. Ayuda a organizar sus tareas diarias mediante divertidos iconos imantados de forma visual e intuitiva.'
+      }
+    : {
+        boardColor: '#5E3A8C',
+        accentColor: '#2E1254',
+        textColor: '#FFFFFF',
+        rowCount: 5,
+        tokens: [
+          { id: '1', iconId: 's25', column: 0, row: 0, icon: 'E' },
+          { id: '2', iconId: 's43', column: 2, row: 2, icon: '.' },
+          { id: '3', iconId: 's26', column: 4, row: 1, icon: '!' }
+        ],
+        description: 'Diseño elegante para el seguimiento de metas semanales, meditación, deportes o toma de agua. Organiza tus rutinas con el mejor contraste de sombras físicas.'
+      };
   
-  // Gallery images list
+  // Galería de imágenes (reutilizando las existentes)
   const photos = model.id === '1'
     ? [
         model.image,
@@ -35,154 +62,219 @@ const ModelDetailScreen = ({ route, navigation }) => {
   
   useEffect(() => {
     if (activeTab === '3d') {
-      async function setup3D() {
-        try {
-          setIsLoading3D(true);
-          
-          // 1. Resolve and download the GLB asset
-          const [glbAsset] = await Asset.loadAsync(require('../../../assets/catalog/Formula1/Formula1.glb'));
-          await glbAsset.downloadAsync();
-          
-          let glbLocalUri = glbAsset.localUri || glbAsset.uri;
-          console.log("GLB asset resolved to:", glbLocalUri);
+      setIsLoading3D(true);
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body, html {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              background-color: #000000;
+              overflow: hidden;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+            #canvas-container {
+              width: 100%;
+              height: 100%;
+            }
+            .loader {
+              position: absolute;
+              color: #00E0FF;
+              font-family: sans-serif;
+              font-size: 14px;
+              font-weight: bold;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+              pointer-events: none;
+              text-shadow: 0 0 8px rgba(0, 224, 255, 0.8);
+              z-index: 10;
+            }
+          </style>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+          <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+        </head>
+        <body>
+          <div id="loading" class="loader">Cargando 3D...</div>
+          <div id="canvas-container"></div>
 
-          if (Platform.OS === 'android' && (!glbLocalUri || !glbLocalUri.startsWith('file://'))) {
-            if (glbAsset.hash) {
-              const cacheUri = `${FileSystem.cacheDirectory}ExponentAsset-${glbAsset.hash}.${glbAsset.type}`;
-              const exists = await FileSystem.getInfoAsync(cacheUri).then(info => info.exists).catch(() => false);
-              if (exists) {
-                glbLocalUri = cacheUri;
-              } else if (glbAsset.uri && (glbAsset.uri.startsWith('http') || glbAsset.uri.startsWith('https'))) {
-                try {
-                  const downloadResult = await FileSystem.downloadAsync(glbAsset.uri, cacheUri);
-                  glbLocalUri = downloadResult.uri;
-                } catch (err) {
-                  console.log("GLB Download failed:", err);
+          <script>
+            const boardColor = "${boardPresets.boardColor}";
+            const accentColor = "${boardPresets.accentColor}";
+            const textColor = "${boardPresets.textColor}";
+            const rowCount = ${boardPresets.rowCount};
+            const tokens = ${JSON.stringify(boardPresets.tokens)};
+
+            // Setup scene
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+
+            // Camera
+            const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 0, 3.5);
+
+            // Renderer
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Controls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.1;
+            controls.minDistance = 1.5;
+            controls.maxDistance = 6;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+            dirLight.position.set(2, 4, 5);
+            dirLight.castShadow = true;
+            dirLight.shadow.bias = -0.0005;
+            scene.add(dirLight);
+
+            // Stainless Steel Fridge
+            const fridgeGeom = new THREE.PlaneGeometry(25, 25);
+            const fridgeMat = new THREE.MeshStandardMaterial({
+              color: 0xd0d4d9,
+              roughness: 0.28,
+              metalness: 0.85
+            });
+            const fridgeMesh = new THREE.Mesh(fridgeGeom, fridgeMat);
+            fridgeMesh.position.z = -0.15;
+            fridgeMesh.receiveShadow = true;
+            scene.add(fridgeMesh);
+
+            // Canvas texture for days/slots
+            function createBoardTexture(bColor, aColor, tColor, rows) {
+              const canvas = document.createElement('canvas');
+              canvas.width = 1024;
+              canvas.height = 1024;
+              const ctx = canvas.getContext('2d');
+              
+              ctx.fillStyle = bColor;
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              
+              ctx.font = 'bold 50px sans-serif';
+              ctx.fillStyle = tColor;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              
+              const colW = canvas.width / 7;
+              const days = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'];
+              for (let c = 0; c < 7; c++) {
+                ctx.fillText(days[c], c * colW + colW / 2, 70);
+              }
+              
+              ctx.strokeStyle = aColor;
+              ctx.lineWidth = 5;
+              const startY = 150;
+              const rowH = (canvas.height - startY - 30) / rows;
+              
+              for (let r = 0; r < rows; r++) {
+                const y = startY + r * rowH + rowH / 2;
+                for (let c = 0; c < 7; c++) {
+                  ctx.beginPath();
+                  ctx.arc(c * colW + colW / 2, y, 44, 0, Math.PI * 2);
+                  ctx.stroke();
                 }
               }
+              return new THREE.CanvasTexture(canvas);
             }
-          }
 
-          if (glbLocalUri) {
-            if (!glbLocalUri.startsWith('file://') && !glbLocalUri.startsWith('http://') && !glbLocalUri.startsWith('https://')) {
-              if (glbLocalUri.startsWith('file:/')) {
-                glbLocalUri = glbLocalUri.replace('file:/', 'file:///');
-              } else {
-                glbLocalUri = `file://${glbLocalUri}`;
-              }
+            const boardW = 2.4;
+            const boardH = 0.35 + rowCount * 0.45;
+            const boardT = 0.03;
+
+            const boardGeom = new THREE.BoxGeometry(boardW, boardH, boardT);
+            const boardFrontTex = createBoardTexture(boardColor, accentColor, textColor, rowCount);
+            
+            const frontMat = new THREE.MeshStandardMaterial({ map: boardFrontTex, roughness: 0.6 });
+            const sideMat = new THREE.MeshStandardMaterial({ color: parseInt(boardColor.replace('#', '0x')), roughness: 0.6 });
+            const boardMaterials = [sideMat, sideMat, sideMat, sideMat, frontMat, sideMat];
+
+            const boardMesh = new THREE.Mesh(boardGeom, boardMaterials);
+            boardMesh.castShadow = true;
+            boardMesh.receiveShadow = true;
+            scene.add(boardMesh);
+
+            // Emojis mapping
+            function createEmojiTexture(emoji) {
+              const canvas = document.createElement('canvas');
+              canvas.width = 256;
+              canvas.height = 256;
+              const ctx = canvas.getContext('2d');
+              ctx.font = '150px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(emoji, 128, 128);
+              return new THREE.CanvasTexture(canvas);
             }
-          }
 
-          if (!glbLocalUri) {
-            throw new Error("No GLB file URI resolved.");
-          }
+            // Render preset tokens
+            tokens.forEach(t => {
+              const tokenGeom = new THREE.CylinderGeometry(0.12, 0.12, 0.018, 32);
+              const topMat = new THREE.MeshStandardMaterial({
+                map: createEmojiTexture(t.icon),
+                roughness: 0.4,
+                transparent: true,
+                alphaTest: 0.3
+              });
+              const bodyMat = new THREE.MeshStandardMaterial({
+                color: parseInt(boardColor.replace('#', '0x')),
+                roughness: 0.6
+              });
 
-          // 2. Read the asset as a Base64 string to bypass WebView CORS restrictions for local files
-          const base64Data = await FileSystem.readAsStringAsync(glbLocalUri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-          const glbDataUri = `data:application/octet-stream;base64,${base64Data}`;
-          
-          // 3. Define the HTML content for Google <model-viewer> using the inline Base64 data URI
-          const htmlContent = `
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <style>
-                body, html {
-                  margin: 0;
-                  padding: 0;
-                  width: 100%;
-                  height: 100%;
-                  background-color: #000000;
-                  overflow: hidden;
-                  display: flex;
-                  justify-content: center;
-                  align-items: center;
-                }
-                model-viewer {
-                  width: 100%;
-                  height: 100%;
-                  background-color: #000000;
-                  --poster-color: transparent;
-                }
-                .loader {
-                  position: absolute;
-                  color: #00E0FF;
-                  font-family: sans-serif;
-                  font-size: 14px;
-                  font-weight: bold;
-                  letter-spacing: 2px;
-                  text-transform: uppercase;
-                  pointer-events: none;
-                  text-shadow: 0 0 8px rgba(0, 224, 255, 0.8);
-                  z-index: 10;
-                }
-              </style>
-              <script>
-                // Forward WebView console logs to React Native
-                const logToRN = (type, args) => {
-                  if (window.ReactNativeWebView) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                      type: type,
-                      message: args.map(arg => {
-                        if (arg instanceof Error) {
-                          return arg.message + '\n' + arg.stack;
-                        } else if (typeof arg === 'object') {
-                          try { return JSON.stringify(arg); } catch (e) { return String(arg); }
-                        }
-                        return String(arg);
-                      }).join(' ')
-                    }));
-                  }
-                };
-                console.log = (...args) => logToRN('log', args);
-                console.error = (...args) => logToRN('error', args);
-                console.warn = (...args) => logToRN('warn', args);
-                window.onerror = (message, source, lineno, colno, error) => {
-                  logToRN('error', ['Global error:', message, 'at', source, 'line', lineno, 'col', colno, error]);
-                  return false;
-                };
-              </script>
-              <!-- Load model-viewer element -->
-              <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
-            </head>
-            <body>
-              <div id="loading" class="loader">Cargando 3D...</div>
-              <model-viewer 
-                id="viewer"
-                src="${glbDataUri}" 
-                alt="Modelo 3D del Cuaderno" 
-                auto-rotate 
-                camera-controls 
-                shadow-intensity="1.5"
-                shadow-softness="0.8"
-                exposure="1.0"
-                environment-image="neutral"
-              >
-              </model-viewer>
-              <script>
-                const viewer = document.getElementById('viewer');
-                const loading = document.getElementById('loading');
-                viewer.addEventListener('load', () => {
-                  loading.style.display = 'none';
-                });
-              </script>
-            </body>
-            </html>
-          `;
-          
-          // Set HTML content directly to state to render in WebView
-          setViewerHtml(htmlContent);
-          setIsLoading3D(false);
-        } catch (error) {
-          console.log("Error setting up 3D viewer:", error);
-          setIsLoading3D(false);
-        }
-      }
-      setup3D();
+              const tokenMesh = new THREE.Mesh(tokenGeom, [bodyMat, topMat, bodyMat]);
+              tokenMesh.rotation.x = Math.PI / 2;
+              tokenMesh.castShadow = true;
+              tokenMesh.receiveShadow = true;
+
+              const stepX = boardW / 7;
+              const slotX = (t.column - 3) * stepX;
+              const startY = boardH / 2 - 0.12;
+              const stepY = (boardH - 0.24) / rowCount;
+              const slotY = startY - t.row * stepY - stepY / 2;
+
+              tokenMesh.position.set(slotX, slotY, boardT / 2 + 0.01);
+              boardMesh.add(tokenMesh);
+            });
+
+            document.getElementById('loading').style.display = 'none';
+
+            window.addEventListener('resize', () => {
+              camera.aspect = window.innerWidth / window.innerHeight;
+              camera.updateProjectionMatrix();
+              renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            function animate() {
+              requestAnimationFrame(animate);
+              boardMesh.rotation.y = Math.sin(Date.now() * 0.001) * 0.15;
+              controls.update();
+              renderer.render(scene, camera);
+            }
+            animate();
+          </script>
+        </body>
+        </html>
+      `;
+      setViewerHtml(htmlContent);
+      setIsLoading3D(false);
     }
   }, [activeTab]);
 
@@ -210,15 +302,10 @@ const ModelDetailScreen = ({ route, navigation }) => {
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.tab, activeTab === '3d' && styles.activeTab]}
-          disabled={model.id !== '1'}
           onPress={() => setActiveTab('3d')}
           activeOpacity={0.8}
         >
-          <Text style={[
-            styles.tabText, 
-            activeTab === '3d' && styles.activeTabText,
-            model.id !== '1' && styles.disabledTabText
-          ]}>
+          <Text style={[styles.tabText, activeTab === '3d' && styles.activeTabText]}>
             VISTA 3D
           </Text>
         </TouchableOpacity>
@@ -254,14 +341,12 @@ const ModelDetailScreen = ({ route, navigation }) => {
             
             <Text style={styles.sectionTitle}>DESCRIPCIÓN</Text>
             <Text style={styles.descriptionText}>
-              Diseño de autor premium inspirado en la velocidad y el diseño técnico automovilístico. 
-              Fabricado con tapa y contratapa en relieve físico multicapa ("Sobre Relieve") 
-              de gran definición técnica sobre base negra mate de alta densidad y durabilidad.
+              {boardPresets.description} Fabricado bajo los más altos estándares técnicos, con colores de base y acento fijos y un set completo de fichas con imanes de neodimio de alta potencia.
             </Text>
             
             <View style={styles.priceContainer}>
               <Text style={styles.priceLabel}>PRECIO</Text>
-              <Text style={styles.priceValue}>$31.500</Text>
+              <Text style={styles.priceValue}>$27.800</Text>
             </View>
           </View>
         </ScrollView>
@@ -271,41 +356,18 @@ const ModelDetailScreen = ({ route, navigation }) => {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#00E0FF" />
               <Text style={styles.loadingText}>CARGANDO MODELO 3D...</Text>
-              <Text style={styles.loadingSubtext}>
-                Estamos preparando la geometría tridimensional interactiva.
-              </Text>
             </View>
           ) : viewerHtml ? (
             <WebView
               originWhitelist={['*']}
-              source={{ html: viewerHtml, baseUrl: 'https://raw.githubusercontent.com' }}
+              source={{ html: viewerHtml }}
               style={styles.webview}
               domStorageEnabled={true}
               javaScriptEnabled={true}
-              mixedContentMode="always"
-              allowFileAccess={true}
-              allowUniversalAccessFromFileURLs={true}
-              onMessage={(event) => {
-                try {
-                  const data = JSON.parse(event.nativeEvent.data);
-                  if (data.type === 'log') {
-                    console.log('[WebView Log]', data.message);
-                  } else if (data.type === 'warn') {
-                    console.warn('[WebView Warn]', data.message);
-                  } else if (data.type === 'error') {
-                    console.error('[WebView Error]', data.message);
-                  }
-                } catch (e) {
-                  console.log('[WebView Msg]', event.nativeEvent.data);
-                }
-              }}
             />
           ) : (
             <View style={styles.loadingContainer}>
-              <Text style={styles.errorText}>NO SE PUDO CARGAR EL MODELO 3D</Text>
-              <Text style={styles.loadingSubtext}>
-                Verifica que el archivo del modelo esté presente en la app.
-              </Text>
+              <Text style={styles.errorText}>NO SE PUDO CARGAR LA VISTA 3D</Text>
             </View>
           )}
         </View>
@@ -333,9 +395,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: 1,
-    textShadowColor: 'rgba(0, 224, 255, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
   },
   title: {
     fontSize: 14,
@@ -369,9 +428,6 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: '#00E0FF',
-    textShadowColor: 'rgba(0, 224, 255, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
   },
   scrollContent: {
     paddingBottom: 40,
@@ -420,9 +476,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 2,
-    textShadowColor: 'rgba(0, 224, 255, 0.8)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
   },
   tagline: {
     fontSize: 11,
@@ -447,7 +500,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#CCCCCC',
     lineHeight: 22,
-    fontWeight: '400',
   },
   priceContainer: {
     marginTop: 30,
@@ -470,10 +522,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     color: '#00E0FF',
-    letterSpacing: 1,
-    textShadowColor: 'rgba(0, 224, 255, 0.7)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
   },
   viewerContainer: {
     flex: 1,
@@ -487,36 +535,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
   },
   loadingText: {
     color: '#00E0FF',
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 2,
-    marginTop: 20,
-    textShadowColor: 'rgba(0, 224, 255, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
-  },
-  loadingSubtext: {
-    color: '#666666',
-    fontSize: 11,
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 16,
   },
   errorText: {
     color: '#FF3B30',
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 2,
-    textShadowColor: 'rgba(255, 59, 48, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
-  },
-  disabledTabText: {
-    color: '#333333',
   }
 });
 
