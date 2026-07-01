@@ -21,14 +21,6 @@ const HubScreen = ({ navigation }) => {
         >
           <Text style={styles.menuButtonText}>MODO CREACIÓN</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() => navigation.navigate('Catalog')}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.menuButtonText}>CATÁLOGO DE AUTOR</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>

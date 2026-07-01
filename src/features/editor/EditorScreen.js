@@ -29,6 +29,7 @@ const MINI_COLUMN_WIDTH = (MINI_BOARD_WIDTH - 2 * MINI_PADDING_X) / 7;
 const MINI_ROW_HEIGHT = 26;
 const MINI_HEADER_HEIGHT = 18;
 const MINI_TOKEN_RADIUS = 9;
+const MINI_CANVAS_WIDTH = 120;
 
 const WHATSAPP_NUMBER = '5491163000370'; // WhatsApp de FaroTracker
 const alias = 'somosfaro3d';
@@ -43,7 +44,7 @@ const MiniToken = ({ token }) => {
 
   // Calcular coordenadas relativas para la miniatura
   const centerX = MINI_PADDING_X + token.column * MINI_COLUMN_WIDTH + MINI_COLUMN_WIDTH / 2;
-  const centerY = MINI_HEADER_HEIGHT + token.row * MINI_ROW_HEIGHT + MINI_ROW_HEIGHT / 2;
+  const centerY = MINI_PADDING_X + MINI_HEADER_HEIGHT + token.row * MINI_ROW_HEIGHT + MINI_ROW_HEIGHT / 2;
   const tx = centerX - MINI_TOKEN_RADIUS;
   const ty = centerY - MINI_TOKEN_RADIUS;
 
@@ -123,9 +124,45 @@ const EditorScreen = ({ navigation }) => {
   } = useDesignStore();
 
   const colors = {
-    base: ['#004F7C', '#1A1A1A', '#5E3A8C', '#2E5A27', '#8C3B3B', '#D28B2B'],
-    accent: ['#0A2B44', '#000000', '#2E1254', '#122D10', '#3D1515', '#573305', '#FFFFFF'],
-    text: ['#8C7D70', '#FFFFFF', '#00E0FF', '#CCCCCC', '#000000']
+    base: [
+      '#000000', // Negro
+      '#3E2723', // Marrón Oscuro
+      '#7F7F7F', // Gris
+      '#FFFFFF', // Blanco
+      '#D11D13', // Rojo
+      '#1C7A34', // Verde
+      '#FFEB3B', // Amarillo
+      '#4F9EE9', // Celeste
+      '#0000FF', // Azul
+      '#F05696', // Rosa
+      '#D500F9', // Violeta
+    ],
+    accent: [
+      '#000000', // Negro
+      '#3E2723', // Marrón Oscuro
+      '#7F7F7F', // Gris
+      '#FFFFFF', // Blanco
+      '#D11D13', // Rojo
+      '#1C7A34', // Verde
+      '#FFEB3B', // Amarillo
+      '#4F9EE9', // Celeste
+      '#0000FF', // Azul
+      '#F05696', // Rosa
+      '#D500F9', // Violeta
+    ],
+    text: [
+      '#000000', // Negro
+      '#3E2723', // Marrón Oscuro
+      '#7F7F7F', // Gris
+      '#FFFFFF', // Blanco
+      '#D11D13', // Rojo
+      '#1C7A34', // Verde
+      '#FFEB3B', // Amarillo
+      '#4F9EE9', // Celeste
+      '#0000FF', // Azul
+      '#F05696', // Rosa
+      '#D500F9', // Violeta
+    ]
   };
 
   const selectedToken = placedTokens.find(s => s.id === selectedStickerId);
@@ -907,202 +944,208 @@ const EditorScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.main}>
-            {/* Tablero organizador semanal 2D */}
-            <ViewShot ref={boardViewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }}>
-              <View style={[styles.trackerBoard, { backgroundColor: boardColor, borderColor: accentColor }]}>
-                {/* Cabecera de días */}
-                <View style={styles.boardHeaderRow}>
-                  {['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'].map((day, idx) => (
-                    <View key={idx} style={styles.boardHeaderCell}>
-                      <Text style={[styles.boardHeaderText, { color: textColor }]}>{day}</Text>
-                    </View>
+            {/* Contenedor del tablero: Toma todo el espacio libre y centra el tablero */}
+            <View style={styles.boardContainer}>
+              {/* Tablero organizador semanal 2D */}
+              <ViewShot ref={boardViewShotRef} options={{ format: 'jpg', quality: 0.9, result: 'base64' }}>
+                <View style={[styles.trackerBoard, { backgroundColor: boardColor, borderColor: accentColor }]}>
+                  {/* Cabecera de días */}
+                  <View style={styles.boardHeaderRow}>
+                    {['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'].map((day, idx) => (
+                      <View key={idx} style={styles.boardHeaderCell}>
+                        <Text style={[styles.boardHeaderText, { color: textColor }]}>{day}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Slots Circulares */}
+                  <View style={styles.boardSlotsContainer}>
+                    {Array.from({ length: rowCount }).map((_, rIdx) => (
+                      <View key={rIdx} style={styles.boardRow}>
+                        {Array.from({ length: 7 }).map((_, cIdx) => (
+                          <View
+                            key={cIdx}
+                            style={[styles.boardSlotCircle, { borderColor: accentColor }]}
+                          />
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Fichas colocadas */}
+                  {placedTokens.map(token => (
+                    <StickerItem
+                      key={token.id}
+                      sticker={token}
+                      isSelected={selectedStickerId === token.id}
+                      onSelect={() => setSelectedStickerId(token.id)}
+                    />
                   ))}
                 </View>
+              </ViewShot>
+            </View>
 
-                {/* Slots Circulares */}
-                <View style={styles.boardSlotsContainer}>
-                  {Array.from({ length: rowCount }).map((_, rIdx) => (
-                    <View key={rIdx} style={styles.boardRow}>
-                      {Array.from({ length: 7 }).map((_, cIdx) => (
-                        <View
-                          key={cIdx}
-                          style={[styles.boardSlotCircle, { borderColor: accentColor }]}
-                        />
-                      ))}
-                    </View>
-                  ))}
-                </View>
-
-                {/* Fichas colocadas */}
-                {placedTokens.map(token => (
-                  <StickerItem
-                    key={token.id}
-                    sticker={token}
-                    isSelected={selectedStickerId === token.id}
-                    onSelect={() => setSelectedStickerId(token.id)}
-                  />
-                ))}
-              </View>
-            </ViewShot>
-
-            <View style={styles.controls}>
-              {/* Controles de Filas (+ y -) */}
-              <View style={styles.rowControls}>
-                <Text style={styles.rowControlsLabel}>FILAS: {rowCount}</Text>
-                <View style={styles.rowButtonsRow}>
-                  <TouchableOpacity
-                    style={styles.rowBtn}
-                    onPress={() => setRowCount(rowCount - 1)}
-                    disabled={rowCount <= 1}
-                  >
-                    <Text style={styles.rowBtnText}>-</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.rowBtn}
-                    onPress={() => setRowCount(rowCount + 1)}
-                    disabled={rowCount >= 6}
-                  >
-                    <Text style={styles.rowBtnText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Controles Cromáticos */}
-              <View style={styles.quickSelectorsRow}>
-                <TouchableOpacity
-                  style={styles.quickSelectorItem}
-                  onPress={() => {
-                    setColorPickerTitle('COLOR DE TABLERO (BASE)');
-                    setColorPickerTarget('base');
-                    setColorPickerVisible(true);
-                  }}
-                >
-                  <Text style={styles.quickSelectorLabel}>BASE</Text>
-                  <View style={[styles.quickColorCircle, { backgroundColor: boardColor }]} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.quickSelectorItem}
-                  onPress={() => {
-                    setColorPickerTitle('COLOR DE RANURAS (ACENTO)');
-                    setColorPickerTarget('accent');
-                    setColorPickerVisible(true);
-                  }}
-                >
-                  <Text style={styles.quickSelectorLabel}>ACENTO</Text>
-                  <View style={[styles.quickColorCircle, { backgroundColor: accentColor }]} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.quickSelectorItem}
-                  onPress={() => {
-                    setColorPickerTitle('COLOR DE TEXTO');
-                    setColorPickerTarget('text');
-                    setColorPickerVisible(true);
-                  }}
-                >
-                  <Text style={styles.quickSelectorLabel}>TEXTO</Text>
-                  <View style={[styles.quickColorCircle, { backgroundColor: textColor }]} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Ficha seleccionada: Acción borrar del tablero */}
-              {selectedToken && (
-                <View style={styles.stickerControlPanel}>
-                  <Text style={styles.stickerControlTitle}>FICHA COLOCADA SELECCIONADA</Text>
-                  <View style={styles.stickerActionRow}>
+            {/* Contenedor inferior: Anclado abajo */}
+            <View style={styles.bottomControlsContainer}>
+              <View style={styles.controls}>
+                {/* Controles de Filas (+ y -) */}
+                <View style={styles.rowControls}>
+                  <Text style={styles.rowControlsLabel}>FILAS: {rowCount}</Text>
+                  <View style={styles.rowButtonsRow}>
                     <TouchableOpacity
-                      style={[styles.stickerActionBtn, styles.deleteStickerBtn, { flex: 1 }]}
-                      onPress={() => {
-                        removePlacedToken(selectedToken.id);
-                        setSelectedStickerId(null);
-                        showToast("Ficha quitada del tablero");
-                      }}
+                      style={styles.rowBtn}
+                      onPress={() => setRowCount(rowCount - 1)}
+                      disabled={rowCount <= 1}
                     >
-                      <Text style={[styles.stickerActionText, styles.deleteStickerText]}>🗑️ QUITAR DEL TABLERO</Text>
+                      <Text style={styles.rowBtnText}>-</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.rowBtn}
+                      onPress={() => setRowCount(rowCount + 1)}
+                      disabled={rowCount >= 6}
+                    >
+                      <Text style={styles.rowBtnText}>+</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
-              )}
 
-              {/* Botón Acción Principal: Abrir Galería o ver 3D */}
-              <View style={styles.mainActionsRow}>
-                <TouchableOpacity
-                  style={styles.actionCircleBtn}
-                  onPress={() => setPickerVisible(true)}
-                >
-                  <Text style={styles.actionBtnIcon}>+</Text>
-                </TouchableOpacity>
+                {/* Controles Cromáticos */}
+                <View style={styles.quickSelectorsRow}>
+                  <TouchableOpacity
+                    style={styles.quickSelectorItem}
+                    onPress={() => {
+                      setColorPickerTitle('COLOR DE TABLERO (BASE)');
+                      setColorPickerTarget('base');
+                      setColorPickerVisible(true);
+                    }}
+                  >
+                    <Text style={styles.quickSelectorLabel}>BASE</Text>
+                    <View style={[styles.quickColorCircle, { backgroundColor: boardColor }]} />
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.actionTextBtn}
-                  onPress={handleOpen3DPreview}
-                >
-                  <Text style={styles.actionBtnText}>
-                    {isGenerating3D ? 'CARGANDO...' : 'VER EN 3D'}
-                  </Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickSelectorItem}
+                    onPress={() => {
+                      setColorPickerTitle('COLOR DE RANURAS (ACENTO)');
+                      setColorPickerTarget('accent');
+                      setColorPickerVisible(true);
+                    }}
+                  >
+                    <Text style={styles.quickSelectorLabel}>ACENTO</Text>
+                    <View style={[styles.quickColorCircle, { backgroundColor: accentColor }]} />
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.actionCircleBtn}
-                  onPress={resetDesign}
-                >
-                  <Text style={[styles.actionBtnIcon, { fontSize: 20, color: '#FF3B30' }]}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Listado de Fichas en tu Pack (Inventario) */}
-            <View style={styles.packInventoryContainer}>
-              <Text style={styles.packInventoryTitle}>FICHAS EN TU PACK FÍSICO ({tokenPack.reduce((acc, t) => acc + t.quantity, 0)}):</Text>
-              {tokenPack.length === 0 ? (
-                <View style={styles.emptyPackPlaceholder}>
-                  <Text style={styles.emptyPackText}>El set de fichas está vacío. Toca "+" para agregar.</Text>
+                  <TouchableOpacity
+                    style={styles.quickSelectorItem}
+                    onPress={() => {
+                      setColorPickerTitle('COLOR DE TEXTO');
+                      setColorPickerTarget('text');
+                      setColorPickerVisible(true);
+                    }}
+                  >
+                    <Text style={styles.quickSelectorLabel}>TEXTO</Text>
+                    <View style={[styles.quickColorCircle, { backgroundColor: textColor }]} />
+                  </TouchableOpacity>
                 </View>
-              ) : (
-                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.packScroll}>
-                  {tokenPack.map(item => {
-                    const found = STICKERS.find(s => s.id === item.iconId);
-                    const imageSource = found ? found.image : null;
-                    const iconSource = found ? found.icon : null;
-                    const placedCount = placedTokens.filter(t => t.iconId === item.iconId).length;
 
-                    return (
-                      <View key={item.iconId} style={styles.inventoryItemCard}>
-                        <TouchableOpacity
-                          style={styles.inventorySpawnButton}
-                          onPress={() => handleSpawnTokenOnGrid(item.iconId)}
-                        >
-                          <View style={[styles.inventoryCircleIcon, { backgroundColor: boardColor, borderColor: accentColor }]}>
-                            {imageSource ? (
-                              <Image source={imageSource} style={styles.inventoryImage} resizeMode="contain" />
-                            ) : (
-                              <Text style={styles.inventoryText}>{iconSource}</Text>
-                            )}
+                {/* Ficha seleccionada: Acción borrar del tablero */}
+                {selectedToken && (
+                  <View style={styles.stickerControlPanel}>
+                    <Text style={styles.stickerControlTitle}>FICHA COLOCADA SELECCIONADA</Text>
+                    <View style={styles.stickerActionRow}>
+                      <TouchableOpacity
+                        style={[styles.stickerActionBtn, styles.deleteStickerBtn, { flex: 1 }]}
+                        onPress={() => {
+                          removePlacedToken(selectedToken.id);
+                          setSelectedStickerId(null);
+                          showToast("Ficha quitada del tablero");
+                        }}
+                      >
+                        <Text style={[styles.stickerActionText, styles.deleteStickerText]}>🗑️ QUITAR DEL TABLERO</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {/* Botón Acción Principal: Abrir Galería o ver 3D */}
+                <View style={styles.mainActionsRow}>
+                  <TouchableOpacity
+                    style={styles.actionCircleBtn}
+                    onPress={() => setPickerVisible(true)}
+                  >
+                    <Text style={styles.actionBtnIcon}>+</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionTextBtn}
+                    onPress={handleOpen3DPreview}
+                  >
+                    <Text style={styles.actionBtnText}>
+                      {isGenerating3D ? 'CARGANDO...' : 'VER EN 3D'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionCircleBtn}
+                    onPress={resetDesign}
+                  >
+                    <Text style={[styles.actionBtnIcon, { fontSize: 20, color: '#FF3B30' }]}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Listado de Fichas en tu Pack (Inventario) */}
+              <View style={styles.packInventoryContainer}>
+                <Text style={styles.packInventoryTitle}>FICHAS EN TU PACK FÍSICO ({tokenPack.reduce((acc, t) => acc + t.quantity, 0)}):</Text>
+                {tokenPack.length === 0 ? (
+                  <View style={styles.emptyPackPlaceholder}>
+                    <Text style={styles.emptyPackText}>El set de fichas está vacío. Toca "+" para agregar.</Text>
+                  </View>
+                ) : (
+                  <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.packScroll}>
+                    {tokenPack.map(item => {
+                      const found = STICKERS.find(s => s.id === item.iconId);
+                      const imageSource = found ? found.image : null;
+                      const iconSource = found ? found.icon : null;
+                      const placedCount = placedTokens.filter(t => t.iconId === item.iconId).length;
+
+                      return (
+                        <View key={item.iconId} style={styles.inventoryItemCard}>
+                          <TouchableOpacity
+                            style={styles.inventorySpawnButton}
+                            onPress={() => handleSpawnTokenOnGrid(item.iconId)}
+                          >
+                            <View style={[styles.inventoryCircleIcon, { backgroundColor: boardColor, borderColor: accentColor }]}>
+                              {imageSource ? (
+                                <Image source={imageSource} style={styles.inventoryImage} resizeMode="contain" />
+                              ) : (
+                                <Text style={styles.inventoryText}>{iconSource}</Text>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+
+                          <Text style={styles.inventoryPlacedQty}>{placedCount} / {item.quantity}</Text>
+
+                          <View style={styles.inventoryQuantityControls}>
+                            <TouchableOpacity
+                              style={styles.qtyBtn}
+                              onPress={() => updateTokenPackQuantity(item.iconId, -1)}
+                            >
+                              <Text style={styles.qtyBtnText}>-</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.qtyBtn}
+                              onPress={() => updateTokenPackQuantity(item.iconId, 1)}
+                            >
+                              <Text style={styles.qtyBtnText}>+</Text>
+                            </TouchableOpacity>
                           </View>
-                        </TouchableOpacity>
-
-                        <Text style={styles.inventoryPlacedQty}>{placedCount} / {item.quantity}</Text>
-
-                        <View style={styles.inventoryQuantityControls}>
-                          <TouchableOpacity
-                            style={styles.qtyBtn}
-                            onPress={() => updateTokenPackQuantity(item.iconId, -1)}
-                          >
-                            <Text style={styles.qtyBtnText}>-</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.qtyBtn}
-                            onPress={() => updateTokenPackQuantity(item.iconId, 1)}
-                          >
-                            <Text style={styles.qtyBtnText}>+</Text>
-                          </TouchableOpacity>
                         </View>
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-              )}
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
             </View>
           </View>
         </View>
@@ -1485,9 +1528,18 @@ const styles = StyleSheet.create({
   },
   main: {
     flex: 1,
-    padding: 15,
+    paddingHorizontal: 15,
+    paddingBottom: 15,
     alignItems: 'center',
-    justifyContent: 'space-between',
+  },
+  boardContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  bottomControlsContainer: {
+    width: '100%',
   },
   trackerBoard: {
     width: BOARD_WIDTH,
@@ -1660,7 +1712,7 @@ const styles = StyleSheet.create({
     width: MINI_BOARD_WIDTH,
     borderRadius: 10,
     borderWidth: 1.5,
-    padding: 5,
+    padding: MINI_PADDING_X,
     position: 'relative',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },

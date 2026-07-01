@@ -6,9 +6,9 @@ const useDesignStore = create(
   persist(
     (set) => ({
       // Colores iniciales
-      boardColor: '#004F7C',
-      accentColor: '#0A2B44',
-      textColor: '#8C7D70',
+      boardColor: '#4F9EE9',
+      accentColor: '#000000',
+      textColor: '#FFFFFF',
       
       // Cantidad de filas (1-6)
       rowCount: 4,
@@ -97,9 +97,9 @@ const useDesignStore = create(
       })),
 
       resetDesign: () => set({
-        boardColor: '#004F7C',
-        accentColor: '#0A2B44',
-        textColor: '#8C7D70',
+        boardColor: '#4F9EE9',
+        accentColor: '#000000',
+        textColor: '#FFFFFF',
         rowCount: 4,
         tokenPack: [],
         placedTokens: []

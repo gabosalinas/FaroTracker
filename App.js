@@ -5,8 +5,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import IntroScreen from './src/features/splash/IntroScreen';
 import HubScreen from './src/features/hub/HubScreen';
 import EditorScreen from './src/features/editor/EditorScreen';
-import CatalogScreen from './src/features/catalog/CatalogScreen';
-import ModelDetailScreen from './src/features/catalog/ModelDetailScreen';
 
 const Stack = createStackNavigator();
 
@@ -44,8 +42,6 @@ export default function App() {
             }}
           />
           <Stack.Screen name="Editor" component={EditorScreen} />
-          <Stack.Screen name="Catalog" component={CatalogScreen} />
-          <Stack.Screen name="ModelDetail" component={ModelDetailScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

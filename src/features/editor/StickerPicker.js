@@ -1,9 +1,10 @@
 import React from 'react';
-import { StyleSheet, View, Text, Modal, TouchableOpacity, FlatList, Dimensions, Image } from 'react-native';
+import { StyleSheet, View, Text, Modal, TouchableOpacity, FlatList, Dimensions, Image, ScrollView } from 'react-native';
 
-const { height } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const ITEM_WIDTH = (width - 100) / 3;
 
-const CATEGORIES = ['DIBUJOS', 'LETRAS', 'ZODIACO', 'EMOJIS'];
+const CATEGORIES = ['DIBUJOS', 'LETRAS', 'ZODIACO', 'EMOJIS', 'GYM', 'DEPORTES', 'PESAS', 'CALISTENIA', 'PILATES'];
 export const STICKERS = [
   { id: 's1', image: require('../../../assets/stickers/AlienCabeza.png'), fileName: 'AlienCabeza.png', name: 'Alien Cabeza', category: 'CUSTOM' },
   { id: 's2', image: require('../../../assets/stickers/AnimalConejo.png'), fileName: 'AnimalConejo.png', name: 'Animal Conejo', category: 'CUSTOM' },
@@ -663,11 +664,91 @@ export const STICKERS = [
   { id: 'e377', icon: '🏁', name: 'Bandera Cuadros', category: 'EMOJIS' },
   { id: 'e378', icon: '💯', name: 'Cien Puntos', category: 'EMOJIS' },
   { id: 'e379', icon: '🔞', name: 'Mas de 18 Anos', category: 'EMOJIS' },
+
+  // GYM
+  { id: 'gym1', icon: '🏃', name: 'Cinta de Correr', category: 'GYM' },
+  { id: 'gym2', icon: '🚴', name: 'Bicicleta Fija', category: 'GYM' },
+  { id: 'gym3', icon: '🚣', name: 'Máquina de Remo', category: 'GYM' },
+  { id: 'gym4', icon: '🧗', name: 'Escaladora (Cardio)', category: 'GYM' },
+  { id: 'gym5', icon: '🧘', name: 'Estiramiento', category: 'GYM' },
+  { id: 'gym6', icon: '🧎', name: 'Zancadas (Lunge)', category: 'GYM' },
+  { id: 'gym7', icon: '🚶', name: 'Caminata', category: 'GYM' },
+  { id: 'gym8', icon: '🥊', name: 'Bolsa de Boxeo', category: 'GYM' },
+  { id: 'gym9', icon: '🥤', name: 'Hidratación / Shaker', category: 'GYM' },
+  { id: 'gym10', icon: '🧖', name: 'Sauna / Recuperación', category: 'GYM' },
+
+  // DEPORTES
+  { id: 'dep1', icon: '⚽', name: 'Fútbol', category: 'DEPORTES' },
+  { id: 'dep2', icon: '🏀', name: 'Básquetbol', category: 'DEPORTES' },
+  { id: 'dep3', icon: '🎾', name: 'Tenis', category: 'DEPORTES' },
+  { id: 'dep4', icon: '🏐', name: 'Vóleibol', category: 'DEPORTES' },
+  { id: 'dep5', icon: '🏈', name: 'Fútbol Americano', category: 'DEPORTES' },
+  { id: 'dep6', icon: '🏊', name: 'Natación', category: 'DEPORTES' },
+  { id: 'dep7', icon: '🚴', name: 'Ciclismo de Ruta', category: 'DEPORTES' },
+  { id: 'dep8', icon: '🏃', name: 'Running', category: 'DEPORTES' },
+  { id: 'dep9', icon: '🏌️', name: 'Golf', category: 'DEPORTES' },
+  { id: 'dep10', icon: '🏓', name: 'Ping Pong', category: 'DEPORTES' },
+  { id: 'dep11', icon: '🥋', name: 'Artes Marciales', category: 'DEPORTES' },
+  { id: 'dep12', icon: '🛹', name: 'Skateboarding', category: 'DEPORTES' },
+  { id: 'dep13', icon: '🥊', name: 'Boxeo', category: 'DEPORTES' },
+  { id: 'dep14', icon: '🎯', name: 'Dardos / Tiro al blanco', category: 'DEPORTES' },
+  { id: 'dep15', icon: '🎳', name: 'Bowling', category: 'DEPORTES' },
+  { id: 'dep16', icon: '⚾', name: 'Béisbol', category: 'DEPORTES' },
+  { id: 'dep17', icon: '🏒', name: 'Hockey sobre Hielo', category: 'DEPORTES' },
+  { id: 'dep18', icon: '🏑', name: 'Hockey sobre Césped', category: 'DEPORTES' },
+  { id: 'dep19', icon: '🏹', name: 'Tiro con Arco', category: 'DEPORTES' },
+  { id: 'dep20', icon: '🧗', name: 'Escalada deportiva', category: 'DEPORTES' },
+  { id: 'dep21', icon: '🏄', name: 'Surf', category: 'DEPORTES' },
+  { id: 'dep22', icon: '🚣', name: 'Remo', category: 'DEPORTES' },
+  { id: 'dep23', icon: '⛸️', name: 'Patinaje', category: 'DEPORTES' },
+  { id: 'dep24', icon: '🎿', name: 'Esquí', category: 'DEPORTES' },
+  { id: 'dep25', icon: '🏎️', name: 'Automovilismo / F1', category: 'DEPORTES' },
+  { id: 'dep26', icon: '🏇', name: 'Equitación', category: 'DEPORTES' },
+  { id: 'dep27', icon: '🏸', name: 'Bádminton', category: 'DEPORTES' },
+  { id: 'dep28', icon: '🛶', name: 'Canotaje / Kayak', category: 'DEPORTES' },
+  { id: 'dep29', icon: '🥏', name: 'Frisbee', category: 'DEPORTES' },
+  { id: 'dep30', icon: '🏋️', name: 'Halterofilia', category: 'DEPORTES' },
+
+  // PESAS
+  { id: 'pes1', icon: '🏋️', name: 'Prensa de Banco (Bench Press)', category: 'PESAS' },
+  { id: 'pes2', icon: '🏋️‍♂️', name: 'Peso Muerto (Deadlift)', category: 'PESAS' },
+  { id: 'pes3', icon: '🏋️‍♀️', name: 'Sentadilla (Squat)', category: 'PESAS' },
+  { id: 'pes4', icon: '💪', name: 'Bíceps con Mancuerna', category: 'PESAS' },
+  { id: 'pes5', icon: '🦾', name: 'Tríceps Polea', category: 'PESAS' },
+  { id: 'pes6', icon: '🧎', name: 'Prensa de Piernas', category: 'PESAS' },
+  { id: 'pes7', icon: '👐', name: 'Remo con Barra (Espalda)', category: 'PESAS' },
+  { id: 'pes8', icon: '🏋️', name: 'Prensa Militar (Hombros)', category: 'PESAS' },
+  { id: 'pes9', icon: '⚏', name: 'Mancuernas', category: 'PESAS' },
+  { id: 'pes10', icon: '🍗', name: 'Día de Piernas (Leg Day)', category: 'PESAS' },
+
+  // CALISTENIA
+  { id: 'cal1', icon: '🧗', name: 'Dominada en Barra (Pull-up)', category: 'CALISTENIA' },
+  { id: 'cal2', icon: '🤸', name: 'Vertical / Handstand', category: 'CALISTENIA' },
+  { id: 'cal3', icon: '🪑', name: 'Fondos en Paralelas (Dips)', category: 'CALISTENIA' },
+  { id: 'cal4', icon: '🧘', name: 'Flexiones de Brazo (Push-up)', category: 'CALISTENIA' },
+  { id: 'cal5', icon: '🚀', name: 'Muscle-up', category: 'CALISTENIA' },
+  { id: 'cal6', icon: '🚩', name: 'Bandera Humana (Human Flag)', category: 'CALISTENIA' },
+  { id: 'cal7', icon: '➖', name: 'Plancha Abdominal', category: 'CALISTENIA' },
+  { id: 'cal8', icon: '🦵', name: 'Elevación de Piernas colgado', category: 'CALISTENIA' },
+  { id: 'cal9', icon: '🛹', name: 'Front Lever', category: 'CALISTENIA' },
+  { id: 'cal10', icon: '🤸‍♂️', name: 'Back Lever', category: 'CALISTENIA' },
+
+  // PILATES
+  { id: 'pil1', icon: '🛏️', name: 'Reformer (Cama)', category: 'PILATES' },
+  { id: 'pil2', icon: '🔵', name: 'Pelota de Pilates', category: 'PILATES' },
+  { id: 'pil3', icon: '🧘', name: 'Mat de Pilates', category: 'PILATES' },
+  { id: 'pil4', icon: '⭕', name: 'Aro de Pilates', category: 'PILATES' },
+  { id: 'pil5', icon: '🦵', name: 'Elevación Lateral de Piernas', category: 'PILATES' },
+  { id: 'pil6', icon: '➰', name: 'Estiramiento de Columna', category: 'PILATES' },
+  { id: 'pil7', icon: '⚖️', name: 'Clase de Control & Equilibrio', category: 'PILATES' },
+  { id: 'pil8', icon: '🤸‍♀️', name: 'Pilates Aéreo', category: 'PILATES' },
+  { id: 'pil9', icon: '🧘‍♀️', name: 'Postura del Cisne', category: 'PILATES' },
+  { id: 'pil10', icon: '🦵', name: 'El Cien (The Hundred)', category: 'PILATES' },
 ];
 
 const getStickerCategory = (item) => {
-  if (item.category === 'EMOJIS') {
-    return 'EMOJIS';
+  if (['EMOJIS', 'GYM', 'DEPORTES', 'PESAS', 'CALISTENIA', 'PILATES'].includes(item.category)) {
+    return item.category;
   }
   if (item.fileName) {
     if (item.fileName.startsWith('Char_')) {
@@ -704,24 +785,30 @@ const StickerPicker = ({ visible, onClose, onSelect }) => {
           </View>
 
           {/* Selector de Categorías (Tabs) */}
-          <View style={styles.tabsContainer}>
-            {CATEGORIES.map(category => (
-              <TouchableOpacity
-                key={category}
-                style={[
-                  styles.tabButton,
-                  activeCategory === category && styles.activeTabButton
-                ]}
-                onPress={() => setActiveCategory(category)}
-              >
-                <Text style={[
-                  styles.tabText,
-                  activeCategory === category && styles.activeTabText
-                ]}>
-                  {category}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.tabsOuterContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.tabsContainer}
+            >
+              {CATEGORIES.map(category => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.tabButton,
+                    activeCategory === category && styles.activeTabButton
+                  ]}
+                  onPress={() => setActiveCategory(category)}
+                >
+                  <Text style={[
+                    styles.tabText,
+                    activeCategory === category && styles.activeTabText
+                  ]}>
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
           
           <FlatList
@@ -794,8 +881,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   stickerItem: {
-    flex: 1,
-    aspectRatio: 1,
+    width: ITEM_WIDTH,
+    height: ITEM_WIDTH,
     margin: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 10,
@@ -811,17 +898,19 @@ const styles = StyleSheet.create({
   stickerIcon: {
     fontSize: 40,
   },
-  tabsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  tabsOuterContainer: {
     borderBottomWidth: 1.5,
     borderBottomColor: 'rgba(0, 224, 255, 0.1)',
-    paddingVertical: 5,
     marginBottom: 10,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
   },
   tabButton: {
     paddingVertical: 10,
-    paddingHorizontal: 5,
+    paddingHorizontal: 12,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },

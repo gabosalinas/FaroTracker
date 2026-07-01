@@ -11,9 +11,11 @@ const ROW_HEIGHT = 45;
 const HEADER_HEIGHT = 35;
 const TOKEN_RADIUS = 18;
 
+const Y_OFFSET = 10 + 5; // 10 is trackerBoard paddingTop, 5 is boardSlotsContainer marginTop
+
 const getSlotPosition = (col, r) => {
   const centerX = PADDING_X + col * COLUMN_WIDTH + COLUMN_WIDTH / 2;
-  const centerY = HEADER_HEIGHT + r * ROW_HEIGHT + ROW_HEIGHT / 2;
+  const centerY = Y_OFFSET + HEADER_HEIGHT + r * ROW_HEIGHT + ROW_HEIGHT / 2;
   return {
     x: centerX - TOKEN_RADIUS,
     y: centerY - TOKEN_RADIUS
@@ -72,7 +74,7 @@ const StickerItem = ({ sticker, isSelected, onSelect }) => {
 
         // Calcular columna y fila más cercanas
         const col = Math.round((tokenCenterX - PADDING_X - COLUMN_WIDTH / 2) / COLUMN_WIDTH);
-        const row = Math.round((tokenCenterY - HEADER_HEIGHT - ROW_HEIGHT / 2) / ROW_HEIGHT);
+        const row = Math.round((tokenCenterY - Y_OFFSET - HEADER_HEIGHT - ROW_HEIGHT / 2) / ROW_HEIGHT);
 
         const rowCount = useDesignStore.getState().rowCount;
         const colValid = col >= 0 && col <= 6;
